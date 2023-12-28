@@ -4,8 +4,10 @@ import (
 	"blanq_invoice/repository"
 	"blanq_invoice/util"
 	"encoding/json"
-	"github.com/gofiber/fiber/v2"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // type CreateUserResponse struct {
@@ -72,11 +74,17 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 	if isExisting {
 		return fiber.NewError(400, "Email already exists")
 	} else {
+		hashedPass, hashErr := bcrypt.GenerateFromPassword([]byte(createuserInput.Password), bcrypt.DefaultCost)
+
+		if hashErr!=nil{
+			return hashErr
+		}
+
 		newUser := &repository.UserModel{
 			Fullname:      createuserInput.Fullname,
 			Email:         createuserInput.Email,
 			Phone:         createuserInput.Phone,
-			Password:      createuserInput.Password,
+			Password:      string(hashedPass),
 			EmailVerified: false,
 		}
 		var verificationData *repository.EmailVerificationModel
@@ -211,7 +219,11 @@ func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	if user.Password == input.Password {
+
+
+	incorrectPassword:=bcrypt.CompareHashAndPassword([]byte(user.Password),[]byte(input.Password ))
+
+	if incorrectPassword==nil{
 		return ctx.JSON(util.SuccessMessage("Logged In", struct{ 
 			User repository.UserModel `json:"user"`
 			}{
