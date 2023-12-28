@@ -19,7 +19,7 @@ func ErrorMessageMiddleware(c *fiber.Ctx) error {
 			errorList = append(errorList, err)
 		}
 
-		return c.JSON(ErrorMessage("error", errorList))
+		return c.JSON(errorMessage("error", errorList))
 	}
 	return nil
 }

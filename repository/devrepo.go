@@ -1,5 +1,7 @@
 package repository
 
+import "errors"
+
 type devRepo struct {
 	userMap              map[string]UserModel
 	emailVerificationMap map[string]EmailVerificationModel
@@ -36,4 +38,29 @@ func (repo *devRepo) CreateUser(input *UserModel) (*UserModel, error) {
 func (repo *devRepo) Tx(action func() error) error {
 
 	return action()
+}
+
+func (repo *devRepo) GetUserVerificationDataWithEmail(email string) (*EmailVerificationModel, error) {
+
+	if data, ok := repo.emailVerificationMap[email]; ok {
+		return &data, nil
+	}
+	return nil, errors.New("not found")
+}
+
+func (repo *devRepo) UpdateUserEmailVerified(email string, emailVerified bool) (*UserModel, error) {
+
+	if user, ok := repo.userMap[email]; ok {
+		user.EmailVerified = emailVerified
+		repo.userMap[email] = user
+		return &user, nil
+	}
+	return nil, errors.New("user not found")
+}
+
+func (repo *devRepo) DeleteEmailVerificationDataByEmail(email string) error {
+
+	delete(repo.userMap, email)
+
+	return nil
 }

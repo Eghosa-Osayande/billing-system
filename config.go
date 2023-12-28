@@ -26,16 +26,12 @@ func (config *ApiConfig) Setup(address string) {
 	app := config.App
 
 	app.Use(util.ErrorMessageMiddleware)
-	authRouter := app.Group("/auth")
-
+	
 	authHandler := handlers.AuthHandler{
 		Repo: config.Repo,
 	}
 
-	authRouter.Get("/signup", authHandler.HandleSignup)
-	authRouter.Get("/login", authHandler.HandleSignup)
-	authRouter.Get("/verifyEmail", authHandler.HandleSignup)
-	authRouter.Get("/resendEmailOtp", authHandler.HandleSignup)
+	authHandler.RegisterHandlers(app.Group("/auth"))
 
 	if err := app.Listen(address); err != nil {
 		log.Fatal("Server failed to start")

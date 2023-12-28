@@ -18,6 +18,6 @@ func GenerateOTP() string {
 }
 
 func SendEmailOTP(email string, otp string) error{
-	fmt.Printf("Sent otp (%v) to %v", otp, email)
+	fmt.Printf("Sent otp (%v) to %v\n", otp, email)
 	return nil
 }

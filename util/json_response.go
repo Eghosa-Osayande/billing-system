@@ -40,7 +40,7 @@ func SuccessMessage(msg string, data interface{}) ApiResponse {
 	}
 }
 
-func ErrorMessage(msg string, errors []error) ApiResponse {
+func errorMessage(msg string, errors []error) ApiResponse {
 	return ApiResponse{
 		Success: false,
 		Message: msg,
