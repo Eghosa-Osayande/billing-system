@@ -4,21 +4,9 @@ import (
 	"blanq_invoice/repository"
 	"blanq_invoice/util"
 	"encoding/json"
-
 	"github.com/gofiber/fiber/v2"
+	"time"
 )
-
-// type SendVerifyEmailOtpInput struct {
-// 	Email string `json:"email" validate:"required,email"`
-// }
-
-type CreateUserInput struct {
-	Fullname string `json:"fullname" validate:"required"`
-	Email    string `json:"email" validate:"required,email"`
-	Phone    string `json:"phone" validate:"required"`
-	Password string `json:"password" validate:"required"`
-	Code     string `json:"code" validate:"required"`
-}
 
 // type CreateUserResponse struct {
 // 	User *User `json:"user"`
@@ -39,6 +27,23 @@ type CreateUserInput struct {
 
 type AuthHandler struct {
 	Repo repository.RepoInterface
+}
+
+type CreateUserInput struct {
+	Fullname string `json:"fullname" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Phone    string `json:"phone" validate:"required"`
+	Password string `json:"password" validate:"required"`
+	Code     string `json:"code" validate:"required"`
+}
+
+
+func newVerificationData(email string) *repository.EmailVerificationModel {
+	return &repository.EmailVerificationModel{
+		Email:     email,
+		Code:      util.GenerateOTP(),
+		ExpiresAt: time.Time.Add(time.Now().UTC(), time.Duration(time.Duration.Seconds(20))),
+	}
 }
 
 func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
@@ -68,17 +73,57 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 			Password:      createuserInput.Password,
 			EmailVerified: false,
 		}
-		createdUser, err := handler.Repo.CreateUser(newUser)
-		if err != nil {
-			return fiber.NewError(500, "User creation failed")
-		}
-		return ctx.JSON(util.SuccessMessage("User created successfully", createdUser))
+		var verificationData *repository.EmailVerificationModel
+		var createdUser *repository.UserModel
+		handler.Repo.Tx(func() error {
+			user, err := handler.Repo.CreateUser(newUser)
+			if err != nil {
+				return fiber.NewError(500, "User creation failed")
+			}
+
+			createdUser = user
+
+			verificationData = newVerificationData(createdUser.Email)
+
+			verificationErr := handler.Repo.PutEmailVerificationData(verificationData)
+
+			if verificationErr != nil {
+				return fiber.NewError(500, "User creation failed, OTP not created")
+			}
+			return nil
+		})
+
+		go util.SendEmailOTP(verificationData.Email, verificationData.Code)
+
+		return ctx.JSON(util.SuccessMessage("User created successfully",nil))
 	}
 
 }
 
+type SendEmailOtpInput struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
 func (handler *AuthHandler) HandleResendOtp(ctx *fiber.Ctx) error {
-	return nil
+	body := ctx.Body()
+	input := &SendEmailOtpInput{}
+
+	if err := json.Unmarshal(body, input); err != nil {
+		return util.ErrorInvalidJsonInput
+	}
+	if valErr := util.ValidateStruct(input); valErr != nil {
+		return valErr
+	}
+
+	verificationData := newVerificationData(input.Email)
+
+	sendEmailErr:=util.SendEmailOTP(verificationData.Email, verificationData.Code)
+
+	if sendEmailErr!=nil{
+		return fiber.NewError(500,"OTP not sent")
+	}
+
+	return ctx.JSON(util.SuccessMessage("OTP sent successfully",nil))
 }
 
 func (handler *AuthHandler) HandleVerifyEmailOtp(ctx *fiber.Ctx) error {

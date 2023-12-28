@@ -5,18 +5,16 @@ type devRepo struct {
 	emailVerificationMap map[string]EmailVerificationModel
 }
 
-
-
 func (repo *devRepo) CheckExistingEmail(email string) (bool, error) {
 	_, hasUser := repo.userMap[email]
 	return hasUser, nil
 }
 
-func (repo *devRepo) PutEmailVerificationData(email string) error {
-	repo.emailVerificationMap[email] = EmailVerificationModel{
-		Email:     email,
-		Code:      "1234",
-		ExpiresAt: newEmailVerificationExpiration(),
+func (repo *devRepo) PutEmailVerificationData(input *EmailVerificationModel) error {
+	repo.emailVerificationMap[input.Email] = EmailVerificationModel{
+		Email:     input.Email,
+		Code:      input.Code,
+		ExpiresAt: input.ExpiresAt,
 	}
 
 	return nil
@@ -33,4 +31,9 @@ func (repo *devRepo) CreateUser(input *UserModel) (*UserModel, error) {
 	repo.userMap[user.Email] = *user
 
 	return user, nil
+}
+
+func (repo *devRepo) Tx(action func() error) error {
+
+	return action()
 }

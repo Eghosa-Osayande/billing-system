@@ -1,10 +1,7 @@
 package repository
 
-import "time"
 
-func newEmailVerificationExpiration() time.Time {
-	return time.Time.Add(time.Now().UTC(), time.Duration(time.Duration.Seconds(20)))
-}
+
 
 func NewRepo() RepoInterface {
 	return &devRepo{
@@ -14,9 +11,10 @@ func NewRepo() RepoInterface {
 }
 
 type RepoInterface interface {
+	Tx(action func() error) (error)
 	CheckExistingEmail(email string) (bool, error)
 	CreateUser(input *UserModel) (*UserModel, error)
-	PutEmailVerificationData(email string) error
+	PutEmailVerificationData(input *EmailVerificationModel) error
 }
 
 
