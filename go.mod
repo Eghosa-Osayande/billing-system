@@ -3,7 +3,6 @@ module blanq_invoice
 go 1.21.3
 
 require (
-	github.com/go-chi/chi/v5 v5.0.11
 	github.com/go-playground/validator/v10 v10.16.0
 	github.com/gofiber/fiber/v2 v2.51.0
 	github.com/joho/godotenv v1.5.1

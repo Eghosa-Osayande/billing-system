@@ -1,19 +1,20 @@
 package main
 
 import (
-	"blanq_invoice/api"
-	"github.com/joho/godotenv"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+
 	err := godotenv.Load()
 	if err != nil {
 		panic(err)
 	}
 
-	server := api.NewApiServer()
+	server := NewApiConfig()
 	port := os.Getenv("PORT")
-	server.Setup(port)
+	server.Setup(":" + port)
 
 }
