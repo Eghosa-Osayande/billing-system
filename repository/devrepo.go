@@ -60,7 +60,18 @@ func (repo *devRepo) UpdateUserEmailVerified(email string, emailVerified bool) (
 
 func (repo *devRepo) DeleteEmailVerificationDataByEmail(email string) error {
 
-	delete(repo.userMap, email)
+	delete(repo.emailVerificationMap, email)
 
 	return nil
+}
+
+func (repo *devRepo) GetUserByEmail(email string) (*UserModel, error) {
+
+	user, ok := repo.userMap[email]
+
+	if ok {
+		return &user, nil
+	}
+
+	return nil, errors.New("user not found for email")
 }

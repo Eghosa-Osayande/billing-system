@@ -156,6 +156,11 @@ func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
 		return util.ApiError{Message: "Record not found"}
 	}
 
+	if verificationData.ExpiresAt.After(time.Now()) {
+		// TODO: optimise removal of expired otp
+		return util.ApiError{Message: "OTP has expired"}
+	}
+
 	if verificationData.Code == input.Code {
 		var updatedUser *repository.UserModel
 
@@ -184,6 +189,35 @@ func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
 
 }
 
+type LoginUserInput struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
+}
+
 func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
-	return nil
+	body := ctx.Body()
+	input := &LoginUserInput{}
+
+	if err := json.Unmarshal(body, input); err != nil {
+		return util.ErrorInvalidJsonInput
+	}
+	if valErr := util.ValidateStruct(input); valErr != nil {
+		return valErr
+	}
+	repo := handler.Repo
+
+	user, err := repo.GetUserByEmail(input.Email)
+	if err != nil {
+		return err
+	}
+
+	if user.Password == input.Password {
+		return ctx.JSON(util.SuccessMessage("Logged In", struct{ 
+			User repository.UserModel `json:"user"`
+			}{
+			User: *user,
+		}))
+	} else {
+		return util.ApiError{Message: "Invalid login details"}
+	}
 }

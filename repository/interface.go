@@ -24,6 +24,8 @@ type RepoInterface interface {
 	GetUserVerificationDataWithEmail(email string) (*EmailVerificationModel, error)
 
 	UpdateUserEmailVerified (email string, emailVerified bool) (*UserModel, error)
+
+	GetUserByEmail(email string) (*UserModel, error)
 }
 
 
