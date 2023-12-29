@@ -4,9 +4,13 @@ import (
 	"blanq_invoice/repository"
 	"blanq_invoice/util"
 	"encoding/json"
+	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -76,7 +80,7 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 	} else {
 		hashedPass, hashErr := bcrypt.GenerateFromPassword([]byte(createuserInput.Password), bcrypt.DefaultCost)
 
-		if hashErr!=nil{
+		if hashErr != nil {
 			return hashErr
 		}
 
@@ -219,15 +223,33 @@ func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
 		return err
 	}
 
+	incorrectPassword := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
 
+	if incorrectPassword == nil {
+		accessDuration := time.Duration(24) * time.Hour * 30
+		claims := jwt.MapClaims{}
+		claims["email"] = user.Email
+		claims["exp"] = jwt.NewNumericDate(time.Now().Add(accessDuration).UTC())
 
-	incorrectPassword:=bcrypt.CompareHashAndPassword([]byte(user.Password),[]byte(input.Password ))
+		key := os.Getenv("TOKENKEY")
 
-	if incorrectPassword==nil{
-		return ctx.JSON(util.SuccessMessage("Logged In", struct{ 
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+		accessToken, err := token.SignedString([]byte(key))
+		if err != nil {
+			log.Println("Error signing token", err)
+			return fiber.NewError(500)
+		}
+
+		return ctx.JSON(util.SuccessMessage("Logged In", struct {
 			User repository.UserModel `json:"user"`
-			}{
+			Auth map[string]string
+		}{
 			User: *user,
+			Auth: map[string]string{
+				"accessToken": accessToken,
+				"expires_in":  fmt.Sprintf("%v", accessDuration.Seconds()),
+			},
 		}))
 	} else {
 		return util.ApiError{Message: "Invalid login details"}

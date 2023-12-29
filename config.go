@@ -33,6 +33,15 @@ func (config *ApiConfig) Setup(address string) {
 
 	authHandler.RegisterHandlers(app.Group("/auth"))
 
+	businessHandler := handlers.BusinessHandler{
+		Repo: config.Repo,
+	}
+
+
+	businessRoute:=app.Group("/business")
+	businessRoute.Use(util.AuthenticatedUserMiddleware)
+	businessHandler.RegisterHandlers(businessRoute)
+
 	if err := app.Listen(address); err != nil {
 		log.Fatal("Server failed to start")
 	}
