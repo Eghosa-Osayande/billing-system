@@ -1,10 +1,10 @@
 package main
 
 import (
-	"blanq_invoice/repository"
-	"log"
+	"database/sql"
 	"os"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
 )
 
@@ -21,14 +21,13 @@ func main() {
 	}
 
 	dbAdress := os.Getenv("DBURL")
-	repo, err := repository.NewPostgresRepo(dbAdress)
+	conn, err := sql.Open("postgres", dbAdress)
+
 	if err != nil {
-		log.Fatal("Failed to connect to database", err)
+		panic(err)
 	}
 
-	defer repo.Close()
-
-	server := NewApiConfig(repo)
+	server := NewApiConfig(ApiConfigParams{DB: conn, App: fiber.New()})
 
 	server.SetupRoutes()
 

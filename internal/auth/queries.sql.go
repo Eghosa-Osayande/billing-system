@@ -3,7 +3,7 @@
 //   sqlc v1.24.0
 // source: queries.sql
 
-package sql_gen
+package auth
 
 import (
 	"context"

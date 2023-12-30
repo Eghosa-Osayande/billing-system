@@ -1,8 +1,6 @@
-package handlers
+package auth
 
 import (
-	"blanq_invoice/repository"
-	"blanq_invoice/sql_gen"
 	"blanq_invoice/util"
 	"encoding/json"
 	"fmt"
@@ -16,25 +14,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// type CreateUserResponse struct {
-// 	User *User `json:"user"`
-// }
-
-// type User struct {
-// 	Fullname      string `json:"fullname"`
-// 	Email         string `json:"email"`
-// 	Phone         string `json:"phone"`
-// 	Password      string `json:"password"`
-// 	EmailVerified bool   `json:"email_verified"`
-// }
-
-// type LoginUserInput struct {
-// 	Email    string `json:"email"`
-// 	Password string `json:"password"`
-// }
 
 type AuthHandler struct {
-	Repo repository.RepoInterface
+	Repo *AuthRepo
+}
+
+func NewAuthHandler(repo *AuthRepo) *AuthHandler {
+	return &AuthHandler{
+		Repo: repo,
+	}
 }
 
 func (handler *AuthHandler) RegisterHandlers(router fiber.Router) {
@@ -77,11 +65,8 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 		if hashErr != nil {
 			return hashErr
 		}
-		newUser := sql_gen.User{
+		newUser := CreateUserParams{
 			ID:            uuid.New(),
-			CreatedAt:     time.Now().UTC(),
-			UpdatedAt:     nil,
-			DeletedAt:     nil,
 			Fullname:      createuserInput.Fullname,
 			Email:         createuserInput.Email,
 			Phone:        createuserInput.Phone,
@@ -95,9 +80,8 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 			return fiber.NewError(500, "User creation failed")
 		}
 
-		verificationData := &sql_gen.UserEmailVerification{
+		verificationData := &CreateOrUpdateUserEmailVerificationParams{
 			Email:     createuserInput.Email,
-			CreatedAt: time.Now().UTC(),
 			Code:      util.GenerateOTP(),
 			ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute),}
 
@@ -129,17 +113,18 @@ func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 		return valErr
 	}
 
-	verificationData := &sql_gen.UserEmailVerification{
-		Email:     input.Email,
-		CreatedAt: time.Now().UTC(),
-		Code:      util.GenerateOTP(),
-		ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute),}
+	
 
 	user, err := handler.Repo.GetUserByEmail(input.Email)
 
 	if err != nil || user == nil {
 		return fiber.NewError(404, "Account with email does not exists")
 	}
+
+	verificationData := &CreateOrUpdateUserEmailVerificationParams{
+		Email:     input.Email,
+		Code:      util.GenerateOTP(),
+		ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute),}
 
 	err = handler.Repo.CreateOrUpdateUserEmailVerificationData(verificationData)
 
@@ -218,7 +203,7 @@ type LoginUserInput struct {
 }
 
 type LoginUserResponse struct {
-	User sql_gen.User `json:"user"`
+	User User `json:"user"`
 	Auth map[string]string
 }
 

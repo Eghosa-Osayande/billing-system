@@ -1,12 +1,17 @@
-package handlers
+package business
 
 import (
-	"blanq_invoice/repository"
 	"github.com/gofiber/fiber/v2"
 )
 
 type BusinessHandler struct {
-	Repo repository.RepoInterface
+	
+}
+
+func NewBusinessHandler() (*BusinessHandler) {
+	return &BusinessHandler{
+		
+	}
 }
 
 func (handler *BusinessHandler) RegisterHandlers(router fiber.Router) {
