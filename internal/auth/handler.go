@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"time"
 
@@ -39,6 +40,16 @@ type CreateUserInput struct {
 	Password string `json:"password" validate:"required"`
 }
 
+
+// Signup godoc
+// @Summary Signup
+// @Description Create a new user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body CreateUserInput true "Create User"
+// @Success 200 {object}  util.ApiResponse{data=User,errors=nil}
+// @Router /auth/signup [post]
 func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 	body := ctx.Body()
 	createuserInput := &CreateUserInput{}
@@ -82,7 +93,7 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 
 		verificationData := &CreateOrUpdateUserEmailVerificationParams{
 			Email:     createuserInput.Email,
-			Code:      util.GenerateOTP(),
+			Code:      GenerateOTP(),
 			ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute),}
 
 		verificationErr := handler.Repo.CreateOrUpdateUserEmailVerificationData(verificationData)
@@ -91,7 +102,7 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 			return fiber.NewError(500, "OTP sending failed")
 		}
 
-		go util.SendEmailOTP(verificationData.Email, verificationData.Code)
+		go SendEmailOTP(verificationData.Email, verificationData.Code)
 
 		return ctx.JSON(util.SuccessMessage("User created successfully", createdUser))
 	}
@@ -101,6 +112,8 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 type SendEmailOtpInput struct {
 	Email string `json:"email" validate:"required,email"`
 }
+
+// create a swagger doc for this endpoint and add to swagger.json
 
 func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 	body := ctx.Body()
@@ -123,7 +136,7 @@ func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 
 	verificationData := &CreateOrUpdateUserEmailVerificationParams{
 		Email:     input.Email,
-		Code:      util.GenerateOTP(),
+		Code:      GenerateOTP(),
 		ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute),}
 
 	err = handler.Repo.CreateOrUpdateUserEmailVerificationData(verificationData)
@@ -132,7 +145,7 @@ func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 		return fiber.NewError(500, "OTP sending failed")
 	}
 
-	sendEmailErr := util.SendEmailOTP(verificationData.Email, verificationData.Code)
+	sendEmailErr := SendEmailOTP(verificationData.Email, verificationData.Code)
 
 	if sendEmailErr != nil {
 		return fiber.NewError(500, "OTP not sent")
@@ -252,4 +265,20 @@ func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
 	} else {
 		return util.ApiError{Message: "Invalid login details"}
 	}
+}
+
+func GenerateOTP() string {
+	arr := make([]int, 4)
+	otpString := ""
+
+	for range arr {
+		otpString += fmt.Sprintf("%v", rand.Intn(10))
+	}
+
+	return otpString
+}
+
+func SendEmailOTP(email string, otp string) error{
+	fmt.Printf("Sent otp (%v) to %v\n", otp, email)
+	return nil
 }

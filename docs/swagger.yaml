@@ -1,0 +1,93 @@
+basePath: /
+definitions:
+  auth.CreateUserInput:
+    properties:
+      email:
+        type: string
+      fullname:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+    required:
+    - email
+    - fullname
+    - password
+    - phone
+    type: object
+  auth.User:
+    properties:
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      email:
+        type: string
+      email_verified:
+        type: boolean
+      fullname:
+        type: string
+      id:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  util.ApiResponse:
+    properties:
+      data: {}
+      errors:
+        items: {}
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: fiber@swagger.io
+    name: API Support
+  description: This is a sample swagger for Fiber
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Fiber Example API
+  version: "1.0"
+paths:
+  /auth/signup:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user
+      parameters:
+      - description: Create User
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.CreateUserInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/util.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.User'
+                errors:
+                  type: object
+              type: object
+      summary: Signup
+      tags:
+      - auth
+swagger: "2.0"
