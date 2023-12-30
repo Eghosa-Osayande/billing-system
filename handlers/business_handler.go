@@ -12,6 +12,10 @@ type BusinessHandler struct {
 func (handler *BusinessHandler) RegisterHandlers(router fiber.Router) {
 	router.Get("/me", handler.HandleGetBusiness)
 
+	router.Get("/update", handler.HandleGetBusiness)
+
+	
+
 }
 
 func (handler *BusinessHandler) HandleGetBusiness(ctx *fiber.Ctx) error {

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"blanq_invoice/repository"
+	"log"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -13,8 +15,23 @@ func main() {
 		panic(err)
 	}
 
-	server := NewApiConfig()
 	port := os.Getenv("PORT")
-	server.Setup(":" + port)
+	if err != nil {
+		panic(err)
+	}
+
+	dbAdress := os.Getenv("DBURL")
+	repo, err := repository.NewPostgresRepo(dbAdress)
+	if err != nil {
+		log.Fatal("Failed to connect to database", err)
+	}
+
+	defer repo.Close()
+
+	server := NewApiConfig(repo)
+
+	server.SetupRoutes()
+
+	server.StartServer(":" + port)
 
 }

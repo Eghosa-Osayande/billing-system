@@ -14,19 +14,19 @@ type ApiConfig struct {
 	App  *fiber.App
 }
 
-func NewApiConfig() *ApiConfig {
+func NewApiConfig(repo repository.RepoInterface) *ApiConfig {
 	return &ApiConfig{
-		Repo: repository.NewRepo(),
+		Repo: repo,
 		App:  fiber.New(),
 	}
 }
 
-func (config *ApiConfig) Setup(address string) {
+func (config *ApiConfig) SetupRoutes() {
 
 	app := config.App
 
 	app.Use(util.ErrorMessageMiddleware)
-	
+
 	authHandler := handlers.AuthHandler{
 		Repo: config.Repo,
 	}
@@ -36,13 +36,18 @@ func (config *ApiConfig) Setup(address string) {
 	businessHandler := handlers.BusinessHandler{
 		Repo: config.Repo,
 	}
-
-
-	businessRoute:=app.Group("/business")
+	businessRoute := app.Group("/business")
 	businessRoute.Use(util.AuthenticatedUserMiddleware)
 	businessHandler.RegisterHandlers(businessRoute)
+
+}
+
+func (config *ApiConfig) StartServer(address string) {
+
+	app := config.App
 
 	if err := app.Listen(address); err != nil {
 		log.Fatal("Server failed to start")
 	}
+
 }

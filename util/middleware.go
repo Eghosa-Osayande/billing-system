@@ -31,10 +31,6 @@ func ErrorMessageMiddleware(c *fiber.Ctx) error {
 	return nil
 }
 
-type AccessTokenCustomClaims struct {
-	Email string
-	jwt.Claims
-}
 
 func AuthenticatedUserMiddleware(c *fiber.Ctx) error {
 	authHeaders := c.GetReqHeaders()["Authorization"]

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"blanq_invoice/repository"
+	"blanq_invoice/sql_gen"
 	"blanq_invoice/util"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -47,15 +49,6 @@ type CreateUserInput struct {
 	Email    string `json:"email" validate:"required,email"`
 	Phone    string `json:"phone" validate:"required"`
 	Password string `json:"password" validate:"required"`
-	Code     string `json:"code" validate:"required"`
-}
-
-func newVerificationData(email string) *repository.EmailVerificationModel {
-	return &repository.EmailVerificationModel{
-		Email:     email,
-		Code:      util.GenerateOTP(),
-		ExpiresAt: time.Time.Add(time.Now().UTC(), time.Duration(time.Duration.Seconds(20))),
-	}
 }
 
 func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
@@ -69,13 +62,14 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 		return valErr
 	}
 
-	isExisting, err := handler.Repo.CheckExistingEmail(createuserInput.Email)
+	existingUser, err := handler.Repo.GetUserByEmail(createuserInput.Email)
 
 	if err != nil {
-		return fiber.NewError(500, "Email lookup failed")
+		log.Println(err)
+		
 	}
 
-	if isExisting {
+	if existingUser != nil {
 		return fiber.NewError(400, "Email already exists")
 	} else {
 		hashedPass, hashErr := bcrypt.GenerateFromPassword([]byte(createuserInput.Password), bcrypt.DefaultCost)
@@ -83,33 +77,35 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 		if hashErr != nil {
 			return hashErr
 		}
-
-		newUser := &repository.UserModel{
+		newUser := sql_gen.User{
+			ID:            uuid.New(),
+			CreatedAt:     time.Now().UTC(),
+			UpdatedAt:     nil,
+			DeletedAt:     nil,
 			Fullname:      createuserInput.Fullname,
 			Email:         createuserInput.Email,
-			Phone:         createuserInput.Phone,
+			Phone:        createuserInput.Phone,
 			Password:      string(hashedPass),
 			EmailVerified: false,
 		}
-		var verificationData *repository.EmailVerificationModel
-		var createdUser *repository.UserModel
-		handler.Repo.Tx(func() error {
-			user, err := handler.Repo.CreateUser(newUser)
-			if err != nil {
-				return fiber.NewError(500, "User creation failed")
-			}
+		
 
-			createdUser = user
+		createdUser, err := handler.Repo.CreateUser(&newUser)
+		if err != nil {
+			return fiber.NewError(500, "User creation failed")
+		}
 
-			verificationData = newVerificationData(createdUser.Email)
+		verificationData := &sql_gen.UserEmailVerification{
+			Email:     createuserInput.Email,
+			CreatedAt: time.Now().UTC(),
+			Code:      util.GenerateOTP(),
+			ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute),}
 
-			verificationErr := handler.Repo.PutEmailVerificationData(verificationData)
+		verificationErr := handler.Repo.CreateOrUpdateUserEmailVerificationData(verificationData)
 
-			if verificationErr != nil {
-				return fiber.NewError(500, "User creation failed, OTP not created")
-			}
-			return nil
-		})
+		if verificationErr != nil {
+			return fiber.NewError(500, "OTP sending failed")
+		}
 
 		go util.SendEmailOTP(verificationData.Email, verificationData.Code)
 
@@ -133,9 +129,23 @@ func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 		return valErr
 	}
 
-	verificationData := newVerificationData(input.Email)
+	verificationData := &sql_gen.UserEmailVerification{
+		Email:     input.Email,
+		CreatedAt: time.Now().UTC(),
+		Code:      util.GenerateOTP(),
+		ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute),}
 
-	handler.Repo.PutEmailVerificationData(verificationData)
+	user, err := handler.Repo.GetUserByEmail(input.Email)
+
+	if err != nil || user == nil {
+		return fiber.NewError(404, "Account with email does not exists")
+	}
+
+	err = handler.Repo.CreateOrUpdateUserEmailVerificationData(verificationData)
+
+	if err != nil {
+		return fiber.NewError(500, "OTP sending failed")
+	}
 
 	sendEmailErr := util.SendEmailOTP(verificationData.Email, verificationData.Code)
 
@@ -162,35 +172,36 @@ func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
 		return valErr
 	}
 
-	verificationData, err := handler.Repo.GetUserVerificationDataWithEmail(input.Email)
+	verificationData, err := handler.Repo.GetUserVerificationDataByEmail(input.Email)
 
 	if err != nil {
 		return util.ApiError{Message: "Record not found"}
 	}
 
-	if verificationData.ExpiresAt.After(time.Now()) {
-		// TODO: optimise removal of expired otp
-		return util.ApiError{Message: "OTP has expired"}
-	}
+	
 
 	if verificationData.Code == input.Code {
-		var updatedUser *repository.UserModel
 
-		txErr := handler.Repo.Tx(func() error {
-			user, err := handler.Repo.UpdateUserEmailVerified(input.Email, true)
-			if err != nil {
-				return util.ApiError{Message: err.Error()}
-			}
-			updatedUser = user
-			deleteErr := handler.Repo.DeleteEmailVerificationDataByEmail(input.Email)
-			if deleteErr != nil {
-				return deleteErr
-			}
-			return nil
-		})
+		if verificationData.ExpiresAt.Before(time.Now().UTC()) {
+			// TODO: optimise removal of expired otp
+			// handler.Repo.DeleteEmailVerificationDataByEmail(input.Email)
+			return util.ApiError{Message: "OTP has expired"}
+		}
 
-		if txErr != nil {
-			return txErr
+		_,err := handler.Repo.UpdateUserEmailVerified(input.Email, true)
+
+		if err != nil {
+			return util.ApiError{Message: err.Error()}
+		}
+
+		if deleteErr := handler.Repo.DeleteEmailVerificationDataByEmail(input.Email); deleteErr != nil {
+			log.Println(deleteErr)
+		}
+
+		updatedUser, err := handler.Repo.GetUserByEmail(input.Email)
+
+		if err != nil {
+			return util.ApiError{Message: "Unknown Error"}
 		}
 
 		return ctx.JSON(util.SuccessMessage("Email Verified", updatedUser))
@@ -204,6 +215,11 @@ func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
 type LoginUserInput struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required"`
+}
+
+type LoginUserResponse struct {
+	User sql_gen.User `json:"user"`
+	Auth map[string]string
 }
 
 func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
@@ -220,7 +236,7 @@ func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
 
 	user, err := repo.GetUserByEmail(input.Email)
 	if err != nil {
-		return err
+		return util.ApiError{Message: "Invalid login details"}
 	}
 
 	incorrectPassword := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
@@ -241,14 +257,11 @@ func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
 			return fiber.NewError(500)
 		}
 
-		return ctx.JSON(util.SuccessMessage("Logged In", struct {
-			User repository.UserModel `json:"user"`
-			Auth map[string]string
-		}{
+		return ctx.JSON(util.SuccessMessage("Logged In", LoginUserResponse{
 			User: *user,
 			Auth: map[string]string{
 				"accessToken": accessToken,
-				"expires_in":  fmt.Sprintf("%v", accessDuration.Seconds()),
+				"expires_by":  fmt.Sprintf("%v", time.Now().Add(accessDuration).UTC()),
 			},
 		}))
 	} else {

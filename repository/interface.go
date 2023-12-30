@@ -1,31 +1,17 @@
 package repository
 
-
-
-
-func NewRepo() RepoInterface {
-	return &devRepo{
-		userMap:              map[string]UserModel{},
-		emailVerificationMap: map[string]EmailVerificationModel{},
-	}
-}
+import "blanq_invoice/sql_gen"
 
 type RepoInterface interface {
-	Tx(action func() error) (error)
+	CreateUser(input *sql_gen.User) (*sql_gen.User, error)
 
-	CheckExistingEmail(email string) (bool, error)
+	CreateOrUpdateUserEmailVerificationData(input *sql_gen.UserEmailVerification) error
 
-	CreateUser(input *UserModel) (*UserModel, error)
-
-	PutEmailVerificationData(input *EmailVerificationModel) error
-	
 	DeleteEmailVerificationDataByEmail(email string) error
 
-	GetUserVerificationDataWithEmail(email string) (*EmailVerificationModel, error)
+	GetUserVerificationDataByEmail(email string) (*sql_gen.UserEmailVerification, error)
 
-	UpdateUserEmailVerified (email string, emailVerified bool) (*UserModel, error)
+	UpdateUserEmailVerified(email string, emailVerified bool) (*sql_gen.User, error)
 
-	GetUserByEmail(email string) (*UserModel, error)
+	GetUserByEmail(email string) (*sql_gen.User, error)
 }
-
-
