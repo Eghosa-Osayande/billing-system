@@ -4,7 +4,7 @@ services:
   
   db:
     image: "postgres"
-    container_name: devpostgresdb
+    container_name: devpostgresdb2
     restart: always
     environment:
       POSTGRES_USER: root
@@ -16,11 +16,11 @@ services:
       - ./data:/var/lib/postgresql/data
 
   pgadmin:
-    container_name: pgadmin4_container
     image: dpage/pgadmin4
+    container_name: pgadmin4_container2
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: root
+      PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - 5050:80
