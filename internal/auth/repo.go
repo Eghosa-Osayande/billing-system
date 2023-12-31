@@ -1,11 +1,10 @@
 package auth
 
 import (
-
 	"context"
-	"database/sql"
 	"log"
 
+	"github.com/jackc/pgx/v5"
 	_ "github.com/lib/pq"
 )
 
@@ -15,7 +14,7 @@ type AuthRepo struct {
 	db *Queries
 }
 
-func NewAuthRepo(conn *sql.DB) (*AuthRepo) {
+func NewAuthRepo(conn *pgx.Conn) (*AuthRepo) {
 
 	db := New(conn)
 

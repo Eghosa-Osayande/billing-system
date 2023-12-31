@@ -3,21 +3,23 @@ package main
 import (
 	"blanq_invoice/internal/auth"
 	"blanq_invoice/internal/business"
+	"blanq_invoice/middlewares"
 	"blanq_invoice/util"
-	"database/sql"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5"
 )
 
 type ApiConfig struct {
 	App *fiber.App
-	DB *sql.DB
+	DB *pgx.Conn
 }
 
 type ApiConfigParams struct {
-	DB *sql.DB
+	DB *pgx.Conn
 	App *fiber.App
+
 }
 
 func NewApiConfig(params ApiConfigParams) *ApiConfig {
@@ -35,9 +37,9 @@ func (config *ApiConfig) SetupRoutes() {
 	authHandler := auth.NewAuthHandler(auth.NewAuthRepo(config.DB))
 	authHandler.RegisterHandlers(app.Group("/auth"))
 
-	businessHandler := business.NewBusinessHandler()
+	businessHandler := business.NewBusinessHandler(business.NewBusinessRepo(config.DB))
 	businessRoute := app.Group("/business")
-	businessRoute.Use(util.AuthenticatedUserMiddleware)
+	businessRoute.Use(middlewares.AuthenticatedUserMiddleware)
 	businessHandler.RegisterHandlers(businessRoute)
 }
 

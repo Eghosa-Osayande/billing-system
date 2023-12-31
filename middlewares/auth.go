@@ -1,37 +1,14 @@
-package util
+package middlewares
 
 import (
 	"errors"
 	"log"
 	"os"
 	"strings"
-	// "time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
-
-func ErrorMessageMiddleware(c *fiber.Ctx) error {
-	if err := c.Next(); err != nil {
-		errorList := []error{}
-
-		if validationErr, ok := err.(ValidationError); ok {
-			errorList = append(errorList, validationErr.ErrArr...)
-		} else {
-			if fiberErr, ok := err.(*fiber.Error); ok {
-				c.Response().SetStatusCode(fiberErr.Code)
-			} else {
-				c.Response().SetStatusCode(500)
-			}
-			errorList = append(errorList, err)
-		}
-
-		
-
-		return c.JSON(errorMessage("error", errorList))
-	}
-	return nil
-}
 
 func AuthenticatedUserMiddleware(c *fiber.Ctx) error {
 	authHeaders := c.GetReqHeaders()["Authorization"]
@@ -60,8 +37,14 @@ func AuthenticatedUserMiddleware(c *fiber.Ctx) error {
 				return unauthenticatedError
 			} else {
 				r, _ := claims.GetExpirationTime()
-				log.Println(r.UTC())
-				c.Next()
+				log.Println("token expires at", r)
+
+				if mapClaims, ok := claims.(jwt.MapClaims); ok {
+					
+					c.Context().SetUserValue("user_id", mapClaims["user_id"].(string))
+					return c.Next()
+				}
+				return errors.New("invalid Bearer Token Claims")
 			}
 		} else {
 			return errors.New("invalid Bearer Token ")

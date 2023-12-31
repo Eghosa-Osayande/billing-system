@@ -1,12 +1,14 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"os"
 
 	_ "blanq_invoice/docs"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
+	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 )
 
@@ -28,11 +30,22 @@ func main() {
 
 	dbAdress := os.Getenv("DBURL")
 	docsAdress := os.Getenv("DOCSURL")
-	conn, err := sql.Open("postgres", dbAdress)
+	x := context.Background()
+	conn, err := pgx.Connect(x, dbAdress)
+	if err != nil {
+		panic(err)
+	}
+
+	defer conn.Close(x)
 
 	if err != nil {
 		panic(err)
 	}
+	err = conn.Ping(x)
+	if err != nil {
+		panic(err)
+	}
+
 	app := fiber.New()
 	app.Get(docsAdress, swagger.New(swagger.Config{
 		TryItOutEnabled: false,

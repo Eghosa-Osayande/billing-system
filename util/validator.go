@@ -1,8 +1,11 @@
 package util
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+
 	"github.com/go-playground/validator/v10"
 )
 
@@ -42,5 +45,20 @@ func msgForTag(tag string, field string) string {
 	default:
 		return fmt.Sprintf("Error for %v", field)
 	}
+
+}
+
+func ValidateRequestBody[T any](body []byte,output T)(T,error){
+
+
+	if err := json.Unmarshal(body, output); err != nil {
+		log.Println(err)
+		return output, ErrorInvalidJsonInput
+	}
+	if valErr := ValidateStruct(output); valErr != nil {
+		return output,valErr
+	}
+
+	return output,nil
 
 }

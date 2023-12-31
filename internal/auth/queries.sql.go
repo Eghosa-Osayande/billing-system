@@ -32,7 +32,7 @@ type CreateOrUpdateUserEmailVerificationParams struct {
 }
 
 func (q *Queries) CreateOrUpdateUserEmailVerification(ctx context.Context, arg CreateOrUpdateUserEmailVerificationParams) error {
-	_, err := q.db.ExecContext(ctx, createOrUpdateUserEmailVerification, arg.Email, arg.Code, arg.ExpiresAt)
+	_, err := q.db.Exec(ctx, createOrUpdateUserEmailVerification, arg.Email, arg.Code, arg.ExpiresAt)
 	return err
 }
 
@@ -62,7 +62,7 @@ type CreateUserParams struct {
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, createUser,
+	row := q.db.QueryRow(ctx, createUser,
 		arg.ID,
 		arg.Fullname,
 		arg.Email,
@@ -93,7 +93,7 @@ WHERE
 `
 
 func (q *Queries) DeleteUserEmailVerificationByEmail(ctx context.Context, email string) error {
-	_, err := q.db.ExecContext(ctx, deleteUserEmailVerificationByEmail, email)
+	_, err := q.db.Exec(ctx, deleteUserEmailVerificationByEmail, email)
 	return err
 }
 
@@ -108,7 +108,7 @@ LIMIT 1
 `
 
 func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRowContext(ctx, findUserByEmail, email)
+	row := q.db.QueryRow(ctx, findUserByEmail, email)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -134,7 +134,7 @@ WHERE
 `
 
 func (q *Queries) FindUserEmailVerificationByEmail(ctx context.Context, email string) (UserEmailVerification, error) {
-	row := q.db.QueryRowContext(ctx, findUserEmailVerificationByEmail, email)
+	row := q.db.QueryRow(ctx, findUserEmailVerificationByEmail, email)
 	var i UserEmailVerification
 	err := row.Scan(
 		&i.Email,
@@ -161,7 +161,7 @@ type UpdateUserEmailVerifiedByEmailParams struct {
 }
 
 func (q *Queries) UpdateUserEmailVerifiedByEmail(ctx context.Context, arg UpdateUserEmailVerifiedByEmailParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, updateUserEmailVerifiedByEmail, arg.EmailVerified, arg.Email)
+	row := q.db.QueryRow(ctx, updateUserEmailVerifiedByEmail, arg.EmailVerified, arg.Email)
 	var i User
 	err := row.Scan(
 		&i.ID,
