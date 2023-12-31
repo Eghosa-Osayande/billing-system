@@ -15,6 +15,46 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/auth/resendEmailOtp": {
+            "post": {
+                "description": "Resend EmailOTP",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Resend EmailOTP",
+                "parameters": [
+                    {
+                        "description": " ",
+                        "name": "ResendEmailOtpInput",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.ResendEmailOtpInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/util.SuccessResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/util.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/signup": {
             "post": {
                 "description": "Create a new user",
@@ -50,7 +90,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/util.SuccessResponse-auth_User"
+                            "$ref": "#/definitions/util.SuccessResponseWithData-database_User"
                         }
                     },
                     "500": {
@@ -87,7 +127,18 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.User": {
+        "auth.ResendEmailOtpInput": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "database.User": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -133,11 +184,19 @@ const docTemplate = `{
                 }
             }
         },
-        "util.SuccessResponse-auth_User": {
+        "util.SuccessResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "util.SuccessResponseWithData-database_User": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/auth.User"
+                    "$ref": "#/definitions/database.User"
                 },
                 "message": {
                     "type": "string"

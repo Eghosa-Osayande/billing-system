@@ -16,7 +16,14 @@ definitions:
     - password
     - phone
     type: object
-  auth.User:
+  auth.ResendEmailOtpInput:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  database.User:
     properties:
       created_at:
         type: string
@@ -46,10 +53,15 @@ definitions:
       message:
         type: string
     type: object
-  util.SuccessResponse-auth_User:
+  util.SuccessResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  util.SuccessResponseWithData-database_User:
     properties:
       data:
-        $ref: '#/definitions/auth.User'
+        $ref: '#/definitions/database.User'
       message:
         type: string
     type: object
@@ -59,6 +71,32 @@ info:
   title: Blanq Invoice API
   version: "1.0"
 paths:
+  /auth/resendEmailOtp:
+    post:
+      consumes:
+      - application/json
+      description: Resend EmailOTP
+      parameters:
+      - description: ' '
+        in: body
+        name: ResendEmailOtpInput
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ResendEmailOtpInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/util.SuccessResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/util.ErrorResponse'
+      summary: Resend EmailOTP
+      tags:
+      - Authentication
   /auth/signup:
     post:
       consumes:
@@ -82,7 +120,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/util.SuccessResponse-auth_User'
+            $ref: '#/definitions/util.SuccessResponseWithData-database_User'
         "500":
           description: Internal Server Error
           schema:
