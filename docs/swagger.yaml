@@ -37,28 +37,26 @@ definitions:
       updated_at:
         type: string
     type: object
-  util.ApiResponse:
+  util.ErrorResponse:
     properties:
-      data: {}
       errors:
-        items: {}
+        items:
+          type: string
         type: array
       message:
         type: string
-      success:
-        type: boolean
+    type: object
+  util.SuccessResponse-auth_User:
+    properties:
+      data:
+        $ref: '#/definitions/auth.User'
+      message:
+        type: string
     type: object
 host: localhost:8080
 info:
-  contact:
-    email: fiber@swagger.io
-    name: API Support
-  description: This is a sample swagger for Fiber
-  license:
-    name: Apache 2.0
-    url: http://www.apache.org/licenses/LICENSE-2.0.html
-  termsOfService: http://swagger.io/terms/
-  title: Fiber Example API
+  contact: {}
+  title: Blanq Invoice API
   version: "1.0"
 paths:
   /auth/signup:
@@ -67,9 +65,14 @@ paths:
       - application/json
       description: Create a new user
       parameters:
-      - description: Create User
+      - description: With the Bearer prefix
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ' '
         in: body
-        name: input
+        name: CreateUserInput
         required: true
         schema:
           $ref: '#/definitions/auth.CreateUserInput'
@@ -79,15 +82,12 @@ paths:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/util.ApiResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/auth.User'
-                errors:
-                  type: object
-              type: object
+            $ref: '#/definitions/util.SuccessResponse-auth_User'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/util.ErrorResponse'
       summary: Signup
       tags:
-      - auth
+      - Authentication
 swagger: "2.0"

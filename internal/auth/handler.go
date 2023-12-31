@@ -42,13 +42,15 @@ type CreateUserInput struct {
 
 
 // Signup godoc
+// @Tags Authentication
 // @Summary Signup
 // @Description Create a new user
-// @Tags auth
 // @Accept json
 // @Produce json
-// @Param input body CreateUserInput true "Create User"
-// @Success 200 {object}  util.ApiResponse{data=User,errors=nil}
+// @Param Authorization header string true "With the Bearer prefix"
+// @Param CreateUserInput body CreateUserInput true " "
+// @Success 200 {object}  util.SuccessResponse[User]
+// @Failure 500 {object}  util.ErrorResponse
 // @Router /auth/signup [post]
 func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 	body := ctx.Body()
@@ -151,7 +153,7 @@ func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 		return fiber.NewError(500, "OTP not sent")
 	}
 
-	return ctx.JSON(util.SuccessMessage("OTP sent successfully", nil))
+	return ctx.JSON(util.SuccessMessage[*User]("OTP sent successfully", nil))
 }
 
 type VerifyEmailOtpInput struct {
@@ -173,7 +175,7 @@ func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
 	verificationData, err := handler.Repo.GetUserVerificationDataByEmail(input.Email)
 
 	if err != nil {
-		return util.ApiError{Message: "Record not found"}
+		return fiber.NewError(400,"Record not found")
 	}
 
 	
@@ -183,13 +185,13 @@ func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
 		if verificationData.ExpiresAt.Before(time.Now().UTC()) {
 			// TODO: optimise removal of expired otp
 			// handler.Repo.DeleteEmailVerificationDataByEmail(input.Email)
-			return util.ApiError{Message: "OTP has expired"}
+			return fiber.NewError(400,"OTP has expired")
 		}
 
 		_,err := handler.Repo.UpdateUserEmailVerified(input.Email, true)
 
 		if err != nil {
-			return util.ApiError{Message: err.Error()}
+			return fiber.NewError(400,err.Error())
 		}
 
 		if deleteErr := handler.Repo.DeleteEmailVerificationDataByEmail(input.Email); deleteErr != nil {
@@ -199,13 +201,13 @@ func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
 		updatedUser, err := handler.Repo.GetUserByEmail(input.Email)
 
 		if err != nil {
-			return util.ApiError{Message: "Unknown Error"}
+			return fiber.NewError(400,"Unknown Error")
 		}
 
 		return ctx.JSON(util.SuccessMessage("Email Verified", updatedUser))
 
 	} else {
-		return util.ApiError{Message: "Incorrect OTP"}
+		return fiber.NewError(400,"Incorrect OTP")
 	}
 
 }
@@ -234,7 +236,7 @@ func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
 
 	user, err := repo.GetUserByEmail(input.Email)
 	if err != nil {
-		return util.ApiError{Message: "Invalid login details"}
+		return fiber.NewError(400,"Invalid login details")
 	}
 
 	incorrectPassword := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
@@ -263,7 +265,7 @@ func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
 			},
 		}))
 	} else {
-		return util.ApiError{Message: "Invalid login details"}
+		return fiber.NewError(400,"Invalid login details")
 	}
 }
 

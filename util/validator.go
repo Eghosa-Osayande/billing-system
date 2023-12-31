@@ -1,27 +1,34 @@
 package util
 
 import (
+	"errors"
 	"fmt"
-
 	"github.com/go-playground/validator/v10"
 )
 
+
 var customValidator *validator.Validate = validator.New(validator.WithRequiredStructEnabled())
 
+type ValidationError struct {	
+	ErrArr []error 
+}
+
+func (v ValidationError) Error() string {
+	return errors.Join(v.ErrArr...).Error()
+}
+
 func ValidateStruct(val interface{}) error {
-
 	if err := customValidator.Struct(val); err != nil {
-
 		validationErrors := err.(validator.ValidationErrors)
 
-		errArr := make(ApiErrorList, len(validationErrors))
+		errArr := make([]error, len(validationErrors))
 		for index, validationErr := range validationErrors {
 			field := validationErr.Field()
 			msg := msgForTag(validationErr.Tag(), field)
-			errArr[index] = ApiError{Field: &field, Message: msg}
+			errArr[index] = errors.New(msg)
 
 		}
-		return errArr
+		return ValidationError{ErrArr:errArr }
 	}
 	return nil
 }

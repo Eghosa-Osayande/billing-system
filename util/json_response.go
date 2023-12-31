@@ -1,50 +1,32 @@
 package util
 
-import "fmt"
+type ApiResponseData = any
 
-type ApiError struct {
-	Field   *string `json:"field"`
+type SuccessResponse[K ApiResponseData] struct {
+	Message string `json:"message"`
+	Data    K      `json:"data"`
+}
+
+type ErrorResponse struct {
 	Message string  `json:"message"`
+	Errors  []string `json:"errors"`
 }
 
-func (apiError ApiError) Error() string {
-	return apiError.Message
-}
+func SuccessMessage[K ApiResponseData](msg string, data K) SuccessResponse[K] {
+	return SuccessResponse[K]{
 
-type ApiErrorList []error
-
-func (apiError ApiErrorList) Error() string {
-	errorString := ""
-	for index, err := range apiError {
-		if index > 0 {
-			errorString += ", "
-		}
-		errorString += fmt.Sprintf("%v", err.Error())
-	}
-	return errorString
-}
-
-type ApiResponse struct {
-	Success bool        `json:"success"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
-	Errors  []error     `json:"errors"`
-}
-
-func SuccessMessage(msg string, data interface{}) ApiResponse {
-	return ApiResponse{
-		Success: true,
 		Message: msg,
 		Data:    data,
-		Errors:  nil,
 	}
 }
 
-func errorMessage(msg string, errors []error) ApiResponse {
-	return ApiResponse{
-		Success: false,
+func errorMessage(msg string, errors []error) ErrorResponse {
+	errStrings := make([]string, len(errors))
+	for t:= range errors {
+		errStrings[t] = errors[t].Error()
+	}
+	return ErrorResponse{
 		Message: msg,
-		Data:    nil,
-		Errors:  errors,
+		Errors: errStrings,
 	}
 }
