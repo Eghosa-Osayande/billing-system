@@ -2,13 +2,23 @@
 // versions:
 //   sqlc v1.24.0
 
-package auth
+package database
 
 import (
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type Business struct {
+	ID             uuid.UUID  `db:"id" json:"id"`
+	CreatedAt      time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt      *time.Time `db:"updated_at" json:"updated_at"`
+	DeletedAt      *time.Time `db:"deleted_at" json:"deleted_at"`
+	BusinessName   string     `db:"business_name" json:"business_name"`
+	BusinessAvatar *string    `db:"business_avatar" json:"business_avatar"`
+	OwnerID        uuid.UUID  `db:"owner_id" json:"owner_id"`
+}
 
 type User struct {
 	ID            uuid.UUID  `db:"id" json:"id"`

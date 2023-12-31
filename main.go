@@ -7,7 +7,6 @@ import (
 	_ "blanq_invoice/docs"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/swagger"
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 )
@@ -47,13 +46,9 @@ func main() {
 	}
 
 	app := fiber.New()
-	app.Get(docsAdress, swagger.New(swagger.Config{
-		TryItOutEnabled: false,
-		DeepLinking:     false,
-		DocExpansion:    "none",
-	}))
 
-	server := NewApiConfig(ApiConfigParams{DB: conn, App: app})
+	server := NewApiConfig(ApiConfigParams{
+		DB: conn, App: app, DocsAddress: docsAdress})
 
 	server.SetupRoutes()
 

@@ -1,23 +1,20 @@
 package auth
 
 import (
+	"blanq_invoice/database"
 	"context"
 	"log"
 
-	"github.com/jackc/pgx/v5"
 	_ "github.com/lib/pq"
 )
 
 
 
 type AuthRepo struct {
-	db *Queries
+	db *database.Queries
 }
 
-func NewAuthRepo(conn *pgx.Conn) (*AuthRepo) {
-
-	db := New(conn)
-
+func NewAuthRepo( db *database.Queries) (*AuthRepo) {
 	return &AuthRepo{
 		db: db,
 	}
@@ -25,10 +22,10 @@ func NewAuthRepo(conn *pgx.Conn) (*AuthRepo) {
 }
 
 
-func (repo *AuthRepo) CreateOrUpdateUserEmailVerificationData(input *CreateOrUpdateUserEmailVerificationParams) error {
+func (repo *AuthRepo) CreateOrUpdateUserEmailVerificationData(input *database.CreateOrUpdateUserEmailVerificationParams) error {
 	ctx := context.Background()
 
-	err:=repo.db.CreateOrUpdateUserEmailVerification(ctx, CreateOrUpdateUserEmailVerificationParams{
+	err:=repo.db.CreateOrUpdateUserEmailVerification(ctx, database.CreateOrUpdateUserEmailVerificationParams{
 		Email:     input.Email,
 		Code:      input.Code,
 		ExpiresAt: input.ExpiresAt,
@@ -36,10 +33,10 @@ func (repo *AuthRepo) CreateOrUpdateUserEmailVerificationData(input *CreateOrUpd
 
 	return err
 }
-func (repo *AuthRepo) CreateUser(user *CreateUserParams) (*User, error) {
+func (repo *AuthRepo) CreateUser(user *database.CreateUserParams) (*database.User, error) {
 	ctx := context.Background()
 	
-	newuser,err:= repo.db.CreateUser(ctx, CreateUserParams{
+	newuser,err:= repo.db.CreateUser(ctx, database.CreateUserParams{
 		ID:            user.ID,
 		Fullname:      user.Fullname,
 		Email:         user.Email,
@@ -51,7 +48,7 @@ func (repo *AuthRepo) CreateUser(user *CreateUserParams) (*User, error) {
 	
 }
 
-func (repo *AuthRepo) GetUserVerificationDataByEmail(email string) (*UserEmailVerification, error) {
+func (repo *AuthRepo) GetUserVerificationDataByEmail(email string) (*database.UserEmailVerification, error) {
 	ctx := context.Background()
 	
 	user,err:= repo.db.FindUserEmailVerificationByEmail(ctx, email)
@@ -63,10 +60,10 @@ func (repo *AuthRepo) GetUserVerificationDataByEmail(email string) (*UserEmailVe
 
 }
 
-func (repo *AuthRepo) UpdateUserEmailVerified(email string, emailVerified bool) (*User, error) {
+func (repo *AuthRepo) UpdateUserEmailVerified(email string, emailVerified bool) (*database.User, error) {
 	ctx := context.Background()
 	
-	user,err:= repo.db.UpdateUserEmailVerifiedByEmail(ctx, UpdateUserEmailVerifiedByEmailParams{
+	user,err:= repo.db.UpdateUserEmailVerifiedByEmail(ctx, database.UpdateUserEmailVerifiedByEmailParams{
 		EmailVerified: emailVerified,
 		Email:         email,
 	})
@@ -81,7 +78,7 @@ func (repo *AuthRepo) DeleteEmailVerificationDataByEmail(email string) error {
 	return err
 }
 
-func (repo *AuthRepo) GetUserByEmail(email string) (*User, error) {
+func (repo *AuthRepo) GetUserByEmail(email string) (*database.User, error) {
 	ctx := context.Background()
 	
 	user,err:= repo.db.FindUserByEmail(ctx, email)

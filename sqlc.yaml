@@ -2,12 +2,12 @@ version: "2"
 
 sql:
   - engine: "postgresql"
-    queries: "./query"
-    schema: "./schema"
+    queries: "sql/query"
+    schema: "sql/schema"
     gen:
       go:
-        package: "business"
-        out: "."
+        package: "database"
+        out: "database"
         sql_package: "pgx/v5"
         emit_db_tags: true
         emit_json_tags: true
@@ -32,3 +32,4 @@ sql:
               pointer: false
           - db_type: "uuid"
             go_type: "github.com/google/uuid.UUID"
+

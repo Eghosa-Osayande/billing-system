@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"blanq_invoice/database"
 	"blanq_invoice/util"
 	"encoding/json"
 	"fmt"
@@ -78,7 +79,7 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 		if hashErr != nil {
 			return hashErr
 		}
-		newUser := CreateUserParams{
+		newUser := database.CreateUserParams{
 			ID:            uuid.New(),
 			Fullname:      createuserInput.Fullname,
 			Email:         createuserInput.Email,
@@ -93,7 +94,7 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 			return fiber.NewError(500, "User creation failed")
 		}
 
-		verificationData := &CreateOrUpdateUserEmailVerificationParams{
+		verificationData := &database.CreateOrUpdateUserEmailVerificationParams{
 			Email:     createuserInput.Email,
 			Code:      GenerateOTP(),
 			ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute),}
@@ -136,7 +137,7 @@ func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 		return fiber.NewError(404, "Account with email does not exists")
 	}
 
-	verificationData := &CreateOrUpdateUserEmailVerificationParams{
+	verificationData := &database.CreateOrUpdateUserEmailVerificationParams{
 		Email:     input.Email,
 		Code:      GenerateOTP(),
 		ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute),}
@@ -153,7 +154,7 @@ func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 		return fiber.NewError(500, "OTP not sent")
 	}
 
-	return ctx.JSON(util.SuccessMessage[*User]("OTP sent successfully", nil))
+	return ctx.JSON(util.SuccessMessage[*database.User]("OTP sent successfully", nil))
 }
 
 type VerifyEmailOtpInput struct {
@@ -218,7 +219,7 @@ type LoginUserInput struct {
 }
 
 type LoginUserResponse struct {
-	User User `json:"user"`
+	User database.User `json:"user"`
 	Auth map[string]string
 }
 

@@ -1,24 +1,17 @@
 package business
 
 import (
+	"blanq_invoice/database"
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 )
 
-
-
-
-
-type BusinessRepo struct {	
-	db *Queries
+type BusinessRepo struct {
+	db *database.Queries
 }
 
-
-func NewBusinessRepo(conn *pgx.Conn) (*BusinessRepo) {
-	
-	db := New(conn)
+func NewBusinessRepo(db *database.Queries) *BusinessRepo {
 
 	return &BusinessRepo{
 		db: db,
@@ -26,40 +19,38 @@ func NewBusinessRepo(conn *pgx.Conn) (*BusinessRepo) {
 
 }
 
-
-
-func (repo *BusinessRepo) CreateBusiness(input *CreateBusinessParams) (*Business, error) {
+func (repo *BusinessRepo) CreateBusiness(input *database.CreateBusinessParams) (*database.Business, error) {
 	ctx := context.Background()
-	
-	newbusiness,err:= repo.db.CreateBusiness(ctx,*input)
+
+	newbusiness, err := repo.db.CreateBusiness(ctx, *input)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
-	return &newbusiness,nil;
-	
+	return &newbusiness, nil
+
 }
 
-func (repo *BusinessRepo) UpdateBusiness(input *UpdateBusinessParams) (*Business, error) {
+func (repo *BusinessRepo) UpdateBusiness(input *database.UpdateBusinessParams) (*database.Business, error) {
 	ctx := context.Background()
-	
-	newbusiness,err:= repo.db.UpdateBusiness(ctx,*input)
+
+	newbusiness, err := repo.db.UpdateBusiness(ctx, *input)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
-	return &newbusiness,nil;
-	
+	return &newbusiness, nil
+
 }
 
-func (repo *BusinessRepo) FindBusinessByUserID(id uuid.UUID) (*Business, error) {
+func (repo *BusinessRepo) FindBusinessByUserID(id uuid.UUID) (*database.Business, error) {
 	ctx := context.Background()
-	
-	business,err:= repo.db.FindBusinessByUserID(ctx,id)
+
+	business, err := repo.db.FindBusinessByUserID(ctx, id)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
-	return &business,nil;
-	
+	return &business, nil
+
 }

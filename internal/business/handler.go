@@ -1,6 +1,7 @@
 package business
 
 import (
+	"blanq_invoice/database"
 	"blanq_invoice/util"
 	"log"
 
@@ -35,10 +36,10 @@ func (handler *BusinessHandler) HandleGetBusiness(ctx *fiber.Ctx) error {
 		}
 		business, err := handler.repo.FindBusinessByUserID(userUUID)
 		if business != nil {
-			return ctx.JSON(util.SuccessMessage[*Business]("Business found", business))
+			return ctx.JSON(util.SuccessMessage[*database.Business]("Business found", business))
 		} else {
 			log.Println(err)
-			return ctx.JSON(util.SuccessMessage[*Business]("No business found", nil))
+			return ctx.JSON(util.SuccessMessage[*database.Business]("No business found", nil))
 		}
 
 	}
@@ -73,7 +74,7 @@ func (handler *BusinessHandler) HandleCreateBusiness(ctx *fiber.Ctx) error {
 			log.Println(err)
 		}
 
-		business, err = handler.repo.CreateBusiness(&CreateBusinessParams{
+		business, err = handler.repo.CreateBusiness(&database.CreateBusinessParams{
 			ID:             uuid.New(),
 			BusinessName:   input.BusinessName,
 			BusinessAvatar: input.BusinessAvatar,
@@ -83,7 +84,7 @@ func (handler *BusinessHandler) HandleCreateBusiness(ctx *fiber.Ctx) error {
 			log.Println(err)
 			return fiber.NewError(fiber.ErrInternalServerError.Code, "Internal Server Error")
 		}
-		return ctx.JSON(util.SuccessMessage[*Business]("Business created successfully", business))
+		return ctx.JSON(util.SuccessMessage[*database.Business]("Business created successfully", business))
 	}
 
 }
@@ -117,7 +118,7 @@ func (handler *BusinessHandler) HandleUpdateBusiness(ctx *fiber.Ctx) error {
 		}
 		
 		
-		business, err = handler.repo.UpdateBusiness(&UpdateBusinessParams{
+		business, err = handler.repo.UpdateBusiness(&database.UpdateBusinessParams{
 			OwnerID:             userUUID,
 			BusinessName:   input.BusinessName,
 			BusinessAvatar: input.BusinessAvatar,
@@ -126,6 +127,6 @@ func (handler *BusinessHandler) HandleUpdateBusiness(ctx *fiber.Ctx) error {
 			log.Println(err)
 			return fiber.NewError(fiber.ErrInternalServerError.Code, "Internal Server Error")
 		}
-		return ctx.JSON(util.SuccessMessage[*Business]("Business updated successfully", business))
+		return ctx.JSON(util.SuccessMessage[*database.Business]("Business updated successfully", business))
 	}
 }
