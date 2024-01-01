@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Business struct {
@@ -18,6 +19,48 @@ type Business struct {
 	BusinessName   string     `db:"business_name" json:"business_name"`
 	BusinessAvatar *string    `db:"business_avatar" json:"business_avatar"`
 	OwnerID        uuid.UUID  `db:"owner_id" json:"owner_id"`
+}
+
+type Client struct {
+	ID         uuid.UUID  `db:"id" json:"id"`
+	CreatedAt  time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt  *time.Time `db:"updated_at" json:"updated_at"`
+	DeletedAt  *time.Time `db:"deleted_at" json:"deleted_at"`
+	BusinessID uuid.UUID  `db:"business_id" json:"business_id"`
+	Fullname   string     `db:"fullname" json:"fullname"`
+	Email      string     `db:"email" json:"email"`
+	Phone      string     `db:"phone" json:"phone"`
+}
+
+type Invoice struct {
+	ID              uuid.UUID      `db:"id" json:"id"`
+	CreatedAt       time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt       *time.Time     `db:"updated_at" json:"updated_at"`
+	DeletedAt       *time.Time     `db:"deleted_at" json:"deleted_at"`
+	BusinessID      uuid.UUID      `db:"business_id" json:"business_id"`
+	Currency        *string        `db:"currency" json:"currency"`
+	PaymentDueDate  *time.Time     `db:"payment_due_date" json:"payment_due_date"`
+	DateOfIssue     *time.Time     `db:"date_of_issue" json:"date_of_issue"`
+	Notes           *string        `db:"notes" json:"notes"`
+	PaymentMethod   *string        `db:"payment_method" json:"payment_method"`
+	PaymentStatus   *string        `db:"payment_status" json:"payment_status"`
+	ClientID        *uuid.UUID     `db:"client_id" json:"client_id"`
+	ShippingFeeType *string        `db:"shipping_fee_type" json:"shipping_fee_type"`
+	ShippingFee     pgtype.Numeric `db:"shipping_fee" json:"shipping_fee"`
+}
+
+type InvoiceItem struct {
+	ID           uuid.UUID      `db:"id" json:"id"`
+	CreatedAt    time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt    *time.Time     `db:"updated_at" json:"updated_at"`
+	DeletedAt    *time.Time     `db:"deleted_at" json:"deleted_at"`
+	InvoiceID    uuid.UUID      `db:"invoice_id" json:"invoice_id"`
+	Name         string         `db:"name" json:"name"`
+	Description  string         `db:"description" json:"description"`
+	Quantity     pgtype.Numeric `db:"quantity" json:"quantity"`
+	Price        pgtype.Numeric `db:"price" json:"price"`
+	DiscountType *string        `db:"discount_type" json:"discount_type"`
+	DiscountFee  pgtype.Numeric `db:"discount_fee" json:"discount_fee"`
 }
 
 type User struct {

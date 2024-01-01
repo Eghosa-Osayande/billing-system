@@ -29,3 +29,9 @@ Create table if not exists business (
 	FOREIGN KEY (owner_id) REFERENCES users(id)
 );
 
+-- +goose Down
+
+DROP TABLE IF EXISTS business;
+DROP TABLE IF EXISTS user_email_verifications;
+DROP TABLE IF EXISTS users;
+
