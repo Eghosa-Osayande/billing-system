@@ -35,42 +35,15 @@ Update
     invoice
 SET
     updated_at = timezone('utc', now()),
-    currency = case
-        when $2 is null then currency
-        else $2
-    end,
-    payment_due_date = case
-        when $3 is null then payment_due_date
-        else $3
-    end,
-    date_of_issue = case
-        when $4 is null then date_of_issue
-        else $4
-    end,
-    notes = case
-        when $5 is null then notes
-        else $5
-    end,
-    payment_method = case
-        when $6 is null then payment_method
-        else $6
-    end,
-    payment_status = case
-        when $7 is null then payment_status
-        else $7
-    end,
-    client_id = case
-        when $8 is null then client_id
-        else $8
-    end,
-    shipping_fee_type = case
-        when $9 is null then shipping_fee_type
-        else $9
-    end,
-    shipping_fee = case
-        when $10 is null then shipping_fee
-        else $10
-    end
+    currency = COALESCE($2, currency),
+    payment_due_date = COALESCE($3, payment_due_date),
+    date_of_issue = COALESCE($4, date_of_issue),
+    notes = COALESCE($5, notes),
+    payment_method = COALESCE($6, payment_method),
+    payment_status = COALESCE($7, payment_status),
+    client_id = COALESCE($8, client_id),
+    shipping_fee_type = COALESCE($9, shipping_fee_type),
+    shipping_fee = COALESCE($10, shipping_fee)
 WHERE
     id = $1 RETURNING *;
 
@@ -81,54 +54,29 @@ WHERE
     id = $1;
 
 -- name: GetInvoiceWhere :many
-
 SELECT
+    sqlc.embed(invoice),
     COUNT(*) OVER () AS total_count,
-    COUNT(*) OVER (ORDER BY created_at ASC RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) AS remaining_count,
-    *
+    COUNT(*) OVER (
+        ORDER BY
+            created_at ASC RANGE BETWEEN CURRENT ROW
+            AND UNBOUNDED FOLLOWING
+    ) AS remaining_count
 FROM
     invoice
 WHERE
-    (
-        $1 is null
-        or business_id = $1
+    (business_id = COALESCE($1, business_id))
+    AND (id = COALESCE($2, id))
+    AND (client_id = COALESCE($3, client_id))
+    AND (payment_status = COALESCE($4, payment_status))
+    AND (payment_method = COALESCE($5, payment_method))
+    AND (
+        shipping_fee_type = COALESCE($6, shipping_fee_type)
     )
-    and (
-        $2 is null
-        or id = $2
-    )
-    and (
-        $3 is null
-        or client_id = $3
-    )
-    and (
-        $4 is null
-        or payment_status = $4
-    )
-    and (
-        $5 is null
-        or payment_method = $5
-    )
-    and (
-        $6 is null
-        or shipping_fee_type = $6
-    )
-    and (
-        $7 is null
-        or currency = $7
-    )
-    and (
-        $8 is null
-        or payment_status = $8
-    )
-    and (
-        $9 is null
-        or payment_method = $9
-    )
-
+    AND (currency = COALESCE($7, currency))
+    AND (payment_status = COALESCE($8, payment_status))
+    AND (payment_method = COALESCE($9, payment_method))
 ORDER BY
     created_at ASC
-LIMIT 
-    $10
-OFFSET 
-    $11;
+LIMIT
+    $10 OFFSET $11;

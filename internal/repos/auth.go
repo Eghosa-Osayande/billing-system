@@ -1,11 +1,9 @@
-package auth
+package repos
 
 import (
 	"blanq_invoice/database"
 	"context"
 	"log"
-
-	_ "github.com/lib/pq"
 )
 
 

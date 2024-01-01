@@ -1,7 +1,8 @@
-package business
+package handlers
 
 import (
 	"blanq_invoice/database"
+	"blanq_invoice/internal/repos"
 	"blanq_invoice/util"
 	"log"
 
@@ -10,11 +11,11 @@ import (
 )
 
 type BusinessHandler struct {
-	repo *BusinessRepo
+	config *repos.ApiRepos
 }
 
-func NewBusinessHandler(repo *BusinessRepo) *BusinessHandler {
-	return &BusinessHandler{repo: repo}
+func NewBusinessHandler(config *repos.ApiRepos) *BusinessHandler {
+	return &BusinessHandler{config: config}
 }
 
 func (handler *BusinessHandler) RegisterHandlers(router fiber.Router) {
@@ -34,7 +35,7 @@ func (handler *BusinessHandler) HandleGetBusiness(ctx *fiber.Ctx) error {
 			log.Println(err)
 			return fiber.NewError(fiber.ErrUnauthorized.Code, "Unauthorized")
 		}
-		business, err := handler.repo.FindBusinessByUserID(userUUID)
+		business, err := handler.config.BusinessRepo.FindBusinessByUserID(userUUID)
 		if business != nil {
 			return ctx.JSON(util.NewSuccessResponseWithData[*database.Business]("Business found", business))
 		} else {
@@ -66,7 +67,7 @@ func (handler *BusinessHandler) HandleCreateBusiness(ctx *fiber.Ctx) error {
 			log.Println(err)
 			return fiber.NewError(fiber.ErrUnauthorized.Code, "Unauthorized")
 		}
-		business, err := handler.repo.FindBusinessByUserID(userUUID)
+		business, err := handler.config.BusinessRepo.FindBusinessByUserID(userUUID)
 		if business != nil {
 			return fiber.NewError(fiber.ErrBadRequest.Code, "User already has a business")
 		}
@@ -74,7 +75,7 @@ func (handler *BusinessHandler) HandleCreateBusiness(ctx *fiber.Ctx) error {
 			log.Println(err)
 		}
 
-		business, err = handler.repo.CreateBusiness(&database.CreateBusinessParams{
+		business, err = handler.config.BusinessRepo.CreateBusiness(&database.CreateBusinessParams{
 			ID:             uuid.New(),
 			BusinessName:   input.BusinessName,
 			BusinessAvatar: input.BusinessAvatar,
@@ -109,7 +110,7 @@ func (handler *BusinessHandler) HandleUpdateBusiness(ctx *fiber.Ctx) error {
 			log.Println(err)
 			return fiber.NewError(fiber.ErrUnauthorized.Code, "Unauthorized")
 		}
-		business, err := handler.repo.FindBusinessByUserID(userUUID)
+		business, err := handler.config.BusinessRepo.FindBusinessByUserID(userUUID)
 		if business == nil {
 			return fiber.NewError(fiber.ErrBadRequest.Code, "User does not have a business yet")
 		}
@@ -117,7 +118,7 @@ func (handler *BusinessHandler) HandleUpdateBusiness(ctx *fiber.Ctx) error {
 			log.Println(err)
 		}
 
-		business, err = handler.repo.UpdateBusiness(&database.UpdateBusinessParams{
+		business, err = handler.config.BusinessRepo.UpdateBusiness(&database.UpdateBusinessParams{
 			OwnerID:        userUUID,
 			BusinessName:   input.BusinessName,
 			BusinessAvatar: input.BusinessAvatar,

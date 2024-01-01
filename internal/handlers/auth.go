@@ -1,7 +1,8 @@
-package auth
+package handlers
 
 import (
 	"blanq_invoice/database"
+	"blanq_invoice/internal/repos"
 	"blanq_invoice/util"
 	"encoding/json"
 	"fmt"
@@ -17,12 +18,12 @@ import (
 )
 
 type AuthHandler struct {
-	Repo *AuthRepo
+	config *repos.ApiRepos
 }
 
-func NewAuthHandler(repo *AuthRepo) *AuthHandler {
+func NewAuthHandler(config *repos.ApiRepos) *AuthHandler {
 	return &AuthHandler{
-		Repo: repo,
+		config: config,
 	}
 }
 
@@ -62,7 +63,7 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 		return valErr
 	}
 
-	existingUser, err := handler.Repo.GetUserByEmail(createuserInput.Email)
+	existingUser, err := handler.config.AuthRepo.GetUserByEmail(createuserInput.Email)
 
 	if err != nil {
 		log.Println(err)
@@ -85,8 +86,8 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 			Password:      string(hashedPass),
 			EmailVerified: false,
 		}
-
-		createdUser, err := handler.Repo.CreateUser(&newUser)
+		
+		createdUser, err := handler.config.AuthRepo.CreateUser(&newUser)
 		if err != nil {
 			return fiber.NewError(500, "User creation failed")
 		}
@@ -96,7 +97,7 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 			Code:      GenerateOTP(),
 			ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute)}
 
-		verificationErr := handler.Repo.CreateOrUpdateUserEmailVerificationData(verificationData)
+		verificationErr := handler.config.AuthRepo.CreateOrUpdateUserEmailVerificationData(verificationData)
 
 		if verificationErr != nil {
 			return fiber.NewError(500, "OTP sending failed")
@@ -134,7 +135,7 @@ func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 		return valErr
 	}
 
-	user, err := handler.Repo.GetUserByEmail(input.Email)
+	user, err := handler.config.AuthRepo.GetUserByEmail(input.Email)
 
 	if err != nil || user == nil {
 		return fiber.NewError(404, "Account with email does not exists")
@@ -145,7 +146,7 @@ func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 		Code:      GenerateOTP(),
 		ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute)}
 
-	err = handler.Repo.CreateOrUpdateUserEmailVerificationData(verificationData)
+	err = handler.config.AuthRepo.CreateOrUpdateUserEmailVerificationData(verificationData)
 
 	if err != nil {
 		return fiber.NewError(500, "OTP sending failed")
@@ -176,7 +177,7 @@ func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
 		return valErr
 	}
 
-	verificationData, err := handler.Repo.GetUserVerificationDataByEmail(input.Email)
+	verificationData, err := handler.config.AuthRepo.GetUserVerificationDataByEmail(input.Email)
 
 	if err != nil {
 		return fiber.NewError(400, "Record not found")
@@ -186,21 +187,21 @@ func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
 
 		if verificationData.ExpiresAt.Before(time.Now().UTC()) {
 			// TODO: optimise removal of expired otp
-			// handler.Repo.DeleteEmailVerificationDataByEmail(input.Email)
+			// handler.config.AuthRepo.DeleteEmailVerificationDataByEmail(input.Email)
 			return fiber.NewError(400, "OTP has expired")
 		}
 
-		_, err := handler.Repo.UpdateUserEmailVerified(input.Email, true)
+		_, err := handler.config.AuthRepo.UpdateUserEmailVerified(input.Email, true)
 
 		if err != nil {
 			return fiber.NewError(400, err.Error())
 		}
 
-		if deleteErr := handler.Repo.DeleteEmailVerificationDataByEmail(input.Email); deleteErr != nil {
+		if deleteErr := handler.config.AuthRepo.DeleteEmailVerificationDataByEmail(input.Email); deleteErr != nil {
 			log.Println(deleteErr)
 		}
 
-		updatedUser, err := handler.Repo.GetUserByEmail(input.Email)
+		updatedUser, err := handler.config.AuthRepo.GetUserByEmail(input.Email)
 
 		if err != nil {
 			return fiber.NewError(400, "Unknown Error")
@@ -234,7 +235,7 @@ func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
 	if valErr := util.ValidateStruct(input); valErr != nil {
 		return valErr
 	}
-	repo := handler.Repo
+	repo := handler.config.AuthRepo
 
 	user, err := repo.GetUserByEmail(input.Email)
 	if err != nil {

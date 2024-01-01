@@ -19,24 +19,17 @@ VALUES
     ) RETURNING *;
 
 -- name: UpdateClient :one
-UPDATE
-    client
+
+
+UPDATE client
 SET
     updated_at = timezone('utc', now()),
-    fullname = case
-        when $2 is null then fullname
-        else $2
-    end,
-    email = case
-        when $3 is null then email
-        else $3
-    end,
-    phone = case
-        when $4 is null then phone
-        else $4
-    end
+    fullname = COALESCE($2, fullname),
+    email = COALESCE($3, email),
+    phone = COALESCE($4, phone)
 WHERE
-    id = $1;
+    id = $1
+RETURNING *;
 
 -- name: DeleteClient :exec
 DELETE FROM
@@ -44,33 +37,32 @@ DELETE FROM
 WHERE
     id = $1;
 
--- name: FindClientsWhere
+-- name: GetClientsWhere :many
+
 SELECT
-    COUNT(*) OVER () AS total_count,
-    COUNT(*) OVER (
-        ORDER BY
-            created_at ASC RANGE BETWEEN CURRENT ROW
-            AND UNBOUNDED FOLLOWING
-    ) AS remaining_count,
-    *
+    sqlc.embed(client),
+    COUNT(client) OVER () AS total_count,
+    COUNT(client) OVER (ORDER BY created_at ASC RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) AS remaining_count
 FROM
     client
+
+
 WHERE
-    (
-        $1 is null
-        or business_id = $1
+    (   
+        business_id = $1
+        or $1 is null
     )
     and (
-        $2 is null
-        or fullname ilike $2
+        fullname ilike $2
+        or $2 is null
     )
     and (
-        $3 is null
-        or email ilike $3
+        email ilike $3
+        or $3 is null
     )
     and (
-        $4 is null
-        or phone ilike $4
+        phone ilike $4
+        or $4 is null
     )
 ORDER BY
     created_at ASC

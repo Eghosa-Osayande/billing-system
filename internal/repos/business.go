@@ -1,4 +1,4 @@
-package business
+package repos
 
 import (
 	"blanq_invoice/database"
@@ -47,6 +47,10 @@ func (repo *BusinessRepo) FindBusinessByUserID(id uuid.UUID) (*database.Business
 	ctx := context.Background()
 
 	business, err := repo.db.FindBusinessByUserID(ctx, id)
+	if database.IsErrNoRows(err) {
+		return nil, nil
+	}
+	
 	if err != nil {
 		return nil, err
 	}
