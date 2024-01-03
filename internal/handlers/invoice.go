@@ -44,41 +44,30 @@ func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
 		if business == nil {
 			return ctx.JSON(util.NewSuccessResponseWithData[*util.PagedResult[database.Invoice]]("Create a business first", nil))
 		}
-		limit, offset := util.GetPaginationFromQueries(ctx.Queries())
 
-		invoices, err := handler.config.InvoiceRepo.GetInvoices(&database.GetInvoiceWhereParams{
-			BusinessID: business.ID,
-			ClientID:   nil,
-			Limit:      int32(limit),
-			Offset:     int32(offset),
-		})
-
-		if err != nil {
-			log.Println(err)
-			return fiber.NewError(fiber.ErrInternalServerError.Code)
-		}
-		return ctx.JSON(util.NewSuccessResponseWithData[*util.PagedResult[database.Invoice]]("Success", invoices))
+		return ctx.SendString("Hello")
 	}
 }
 
-type InvoiceItem struct {
-	Name     string   `json:"name" validate:"required" db:"name"`
-	Price    float64  `json:"price" validate:"required" db:"price"`
-	Quantity int      `json:"quantity" validate:"required" db:"quantity"`
-	Discount *float64 `json:"discount" db:"discount"`
+type InvoiceItemInput struct {
+	Name         string           `json:"name" validate:"required" db:"name"`
+	Price        decimal.Decimal  `json:"price" validate:"required" db:"price"`
+	Quantity     int              `json:"quantity" validate:"required" db:"quantity"`
+	Discount     *decimal.Decimal `json:"discount" db:"discount"`
+	DiscountType *string          `json:"discount_type" db:"discount_type"`
 }
 
 type CreateInvoiceInput struct {
-	Currency        *string          `json:"currency"`
-	PaymentDueDate  *time.Time       `json:"payment_due_date" validate:"omitnil,datetime=2006-01-02"`
-	DateOfIssue     *time.Time       `json:"date_of_issue"`
-	Notes           *string          `json:"notes"`
-	PaymentMethod   *string          `json:"payment_method"`
-	PaymentStatus   *string          `json:"payment_status"`
-	Items           *[]InvoiceItem   `json:"items"`
-	ClientID        *uuid.UUID       `json:"client_id"`
-	ShippingFeeType *string          `json:"shipping_fee_type"`
-	ShippingFee     *decimal.Decimal `json:"shipping_fee"`
+	Currency        *string             `json:"currency"`
+	PaymentDueDate  *time.Time          `json:"payment_due_date" validate:"omitnil,datetime=2006-01-02"`
+	DateOfIssue     *time.Time          `json:"date_of_issue"`
+	Notes           *string             `json:"notes"`
+	PaymentMethod   *string             `json:"payment_method"`
+	PaymentStatus   *string             `json:"payment_status"`
+	Items           *[]InvoiceItemInput `json:"items"`
+	ClientID        *uuid.UUID          `json:"client_id"`
+	ShippingFeeType *string             `json:"shipping_fee_type"`
+	ShippingFee     *decimal.Decimal    `json:"shipping_fee"`
 }
 
 func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
@@ -109,27 +98,19 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 			return ctx.JSON(util.NewSuccessResponseWithData[*util.PagedResult[database.Invoice]]("Create a business first", nil))
 		}
 
-		itemsParams := new([]database.CreateInvoiceItemParams)
+		itemsParams := make([]database.CreateInvoiceItemParams, 0)
 
 		if input.Items != nil {
-			*itemsParams = make([]database.CreateInvoiceItemParams, len(*input.Items))
+			itemsParams = make([]database.CreateInvoiceItemParams, len(*input.Items))
 			for index := range *input.Items {
 				item := (*input.Items)[index]
-				var discount *decimal.Decimal
 
-				if item.Discount == nil {
-					discount = nil
-				} else {
-					discount = new(decimal.Decimal)
-					*discount = decimal.NewFromFloat(*item.Discount)
-				}
-				
-				(*itemsParams)[index] = database.CreateInvoiceItemParams{
+				itemsParams[index] = database.CreateInvoiceItemParams{
 					Title:        item.Name,
-					Price:        decimal.NewFromFloat(item.Price),
+					Price:        item.Price,
 					Quantity:     decimal.NewFromInt(int64(item.Quantity)),
-					Discount:     discount,
-					DiscountType: nil,
+					Discount:     item.Discount,
+					DiscountType: item.DiscountType,
 				}
 			}
 		}
@@ -143,7 +124,6 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 				Notes:           input.Notes,
 				PaymentMethod:   input.PaymentMethod,
 				PaymentStatus:   input.PaymentStatus,
-				Items:           nil,
 				ClientID:        input.ClientID,
 				ShippingFeeType: input.ShippingFeeType,
 				ShippingFee:     input.ShippingFee,
@@ -155,6 +135,6 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 			return fiber.NewError(fiber.ErrInternalServerError.Code)
 		}
 
-		return ctx.JSON(util.NewSuccessResponseWithData[*database.InvoiceWithItems]("Success", invoice))
+		return ctx.JSON(util.NewSuccessResponseWithData[any]("Success", invoice))
 	}
 }

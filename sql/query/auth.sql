@@ -1,9 +1,9 @@
 -- name: CreateOrUpdateUserEmailVerification :exec
 
 INSERT INTO
-	user_email_verifications (email, code, expires_at, created_at)
+	user_email_verifications (email, code, expires_at)
 VALUES
-	($1, $2, $3, timezone('utc', now())) ON CONFLICT (email) DO
+	($1, $2, $3) ON CONFLICT (email) DO
 UPDATE
 SET
 	code = $2,
@@ -13,16 +13,15 @@ SET
 -- name: CreateUser :one
 INSERT INTO
 	users (
-		id,
+		
 		fullname,
 		email,
 		phone,
 		password,
-		email_verified,
-		created_at
+		email_verified
 	)
 VALUES
-	($1, $2, $3, $4, $5, $6, timezone('utc', now()))
+	($1, $2, $3, $4, $5)
 RETURNING *;
 
 -- name: FindUserEmailVerificationByEmail :one

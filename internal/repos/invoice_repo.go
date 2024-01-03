@@ -2,7 +2,6 @@ package repos
 
 import (
 	"blanq_invoice/database"
-	"blanq_invoice/util"
 	"context"
 	"errors"
 	"fmt"
@@ -22,33 +21,7 @@ func NewInvoiceRepo(db *database.Queries) *InvoiceRepo {
 
 }
 
-func (repo *InvoiceRepo) GetInvoices(input *database.GetInvoiceWhereParams) (*util.PagedResult[database.Invoice], error) {
-	ctx := context.Background()
-
-	invoices, err := repo.db.GetInvoiceWhere(ctx, *input)
-
-	if database.IsErrNoRows(err) {
-		return nil, nil
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	invoiceList := []database.Invoice{}
-	total := 0
-
-	for index := range invoices {
-		invoiceList = append(invoiceList, invoices[index].Invoice)
-		total = int(invoices[index].TotalCount)
-
-	}
-
-	return util.NewPagedResult[database.Invoice](invoiceList, total), nil
-
-}
-
-func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, items *[]database.CreateInvoiceItemParams) (*database.InvoiceWithItems, error) {
+func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, items []database.CreateInvoiceItemParams) (*database.InvoiceWithItems, error) {
 	ctx := context.Background()
 	sqDB := repo.db.GetSqlDB()
 	tx, err := sqDB.Begin(ctx)
@@ -58,7 +31,7 @@ func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, item
 
 	defer tx.Rollback(ctx)
 	db := repo.db.WithTx(tx)
-	invoice, err := db.CreateInvoice(ctx, *input)
+	newinvoice, err := db.CreateInvoice(ctx, *input)
 
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -68,28 +41,27 @@ func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, item
 		}
 		return nil, err
 	}
-	
-	if items != nil {
-		for index := range *items {
-			item := (*items)[index]
-			item.InvoiceID = invoice.ID
 
-			err := db.CreateInvoiceItem(ctx, item)
-			if err != nil {
-				return nil, err
-			}
+	newItems := make([]database.Invoiceitem, len(items))
+	for index := range items {
+		item := items[index]
+		item.InvoiceID = newinvoice.ID
+
+		newItem, err := db.CreateInvoiceItem(ctx, item)
+		if err != nil {
+			return nil, err
 		}
+		newItems[index] = newItem
+
 	}
 
-	newitems,err:=db.FindInvoiceItemsByInvoiceID(ctx, invoice.ID)
-	if err != nil {
-		return nil, err
-	}
+	fmt.Println(newItems)
+
 	tx.Commit(ctx)
+
 	return &database.InvoiceWithItems{
-		Invoice: invoice,
-		Items:   newitems,
+		Invoice: newinvoice,
+		Items:   newItems,
 	}, nil
-	
-	
+
 }

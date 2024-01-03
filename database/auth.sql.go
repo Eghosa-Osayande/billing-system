@@ -8,16 +8,14 @@ package database
 import (
 	"context"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 const createOrUpdateUserEmailVerification = `-- name: CreateOrUpdateUserEmailVerification :exec
 
 INSERT INTO
-	user_email_verifications (email, code, expires_at, created_at)
+	user_email_verifications (email, code, expires_at)
 VALUES
-	($1, $2, $3, timezone('utc', now())) ON CONFLICT (email) DO
+	($1, $2, $3) ON CONFLICT (email) DO
 UPDATE
 SET
 	code = $2,
@@ -39,31 +37,28 @@ func (q *Queries) CreateOrUpdateUserEmailVerification(ctx context.Context, arg C
 const createUser = `-- name: CreateUser :one
 INSERT INTO
 	users (
-		id,
+		
 		fullname,
 		email,
 		phone,
 		password,
-		email_verified,
-		created_at
+		email_verified
 	)
 VALUES
-	($1, $2, $3, $4, $5, $6, timezone('utc', now()))
+	($1, $2, $3, $4, $5)
 RETURNING id, created_at, updated_at, deleted_at, fullname, email, phone, password, email_verified
 `
 
 type CreateUserParams struct {
-	ID            uuid.UUID `db:"id" json:"id"`
-	Fullname      string    `db:"fullname" json:"fullname"`
-	Email         string    `db:"email" json:"email"`
-	Phone         string    `db:"phone" json:"phone"`
-	Password      string    `db:"password" json:"password"`
-	EmailVerified bool      `db:"email_verified" json:"email_verified"`
+	Fullname      string `db:"fullname" json:"fullname"`
+	Email         string `db:"email" json:"email"`
+	Phone         string `db:"phone" json:"phone"`
+	Password      string `db:"password" json:"password"`
+	EmailVerified bool   `db:"email_verified" json:"email_verified"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRow(ctx, createUser,
-		arg.ID,
 		arg.Fullname,
 		arg.Email,
 		arg.Phone,

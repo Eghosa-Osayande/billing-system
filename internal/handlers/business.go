@@ -76,7 +76,6 @@ func (handler *BusinessHandler) HandleCreateBusiness(ctx *fiber.Ctx) error {
 		}
 
 		business, err = handler.config.BusinessRepo.CreateBusiness(&database.CreateBusinessParams{
-			ID:             uuid.New(),
 			BusinessName:   input.BusinessName,
 			BusinessAvatar: input.BusinessAvatar,
 			OwnerID:        userUUID,

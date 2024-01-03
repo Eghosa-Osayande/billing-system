@@ -1,4 +1,4 @@
--- name: CreateInvoiceItem :exec
+-- name: CreateInvoiceItem :one
 INSERT INTO
     invoiceitem (
         invoice_id,
@@ -16,7 +16,8 @@ VALUES
         $4,
         $5,
         $6
-    );
+    )
+RETURNING *;
 
 -- name: DeleteInvoiceItemByID :exec
 DELETE FROM
@@ -24,11 +25,10 @@ DELETE FROM
 WHERE
     id = $1;
 
--- name: FindInvoiceItemsByInvoiceID :many
+-- name: FindInvoiceItemsByInvoiceId :many
 SELECT
-    sqlc.embed(invoice),sqlc.embed(invoiceitem)
+    *
 FROM
     invoiceitem
-JOIN invoiceitem ON invoiceitem.invoice_id = invoice.id
 WHERE
-    invoice_id = $1;
+    (invoiceitem.invoice_id = $1);

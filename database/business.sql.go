@@ -14,8 +14,7 @@ import (
 const createBusiness = `-- name: CreateBusiness :one
 INSERT INTO
 	business (
-		id,
-		created_at,
+		
 		business_name,
 		business_avatar,
 		owner_id
@@ -23,27 +22,19 @@ INSERT INTO
 VALUES
 	(
 		$1,
-		timezone('utc', now()),
 		$2,
-		$3,
-		$4
+		$3
 	) RETURNING id, created_at, updated_at, deleted_at, business_name, business_avatar, owner_id
 `
 
 type CreateBusinessParams struct {
-	ID             uuid.UUID `db:"id" json:"id"`
 	BusinessName   string    `db:"business_name" json:"business_name"`
 	BusinessAvatar *string   `db:"business_avatar" json:"business_avatar"`
 	OwnerID        uuid.UUID `db:"owner_id" json:"owner_id"`
 }
 
 func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) (Business, error) {
-	row := q.db.QueryRow(ctx, createBusiness,
-		arg.ID,
-		arg.BusinessName,
-		arg.BusinessAvatar,
-		arg.OwnerID,
-	)
+	row := q.db.QueryRow(ctx, createBusiness, arg.BusinessName, arg.BusinessAvatar, arg.OwnerID)
 	var i Business
 	err := row.Scan(
 		&i.ID,

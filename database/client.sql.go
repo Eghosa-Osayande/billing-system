@@ -14,8 +14,7 @@ import (
 const createClient = `-- name: CreateClient :one
 INSERT INTO
     client (
-        id,
-        created_at,
+       
         business_id,
         fullname,
         email,
@@ -24,25 +23,21 @@ INSERT INTO
 VALUES
     (
         $1,
-        timezone('utc', now()),
         $2,
         $3,
-        $4,
-        $5
+        $4
     ) RETURNING id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
 `
 
 type CreateClientParams struct {
-	ID         uuid.UUID `db:"id" json:"id"`
 	BusinessID uuid.UUID `db:"business_id" json:"business_id"`
-	Fullname   *string   `db:"fullname" json:"fullname"`
+	Fullname   string    `db:"fullname" json:"fullname"`
 	Email      *string   `db:"email" json:"email"`
 	Phone      *string   `db:"phone" json:"phone"`
 }
 
 func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Client, error) {
 	row := q.db.QueryRow(ctx, createClient,
-		arg.ID,
 		arg.BusinessID,
 		arg.Fullname,
 		arg.Email,
@@ -74,81 +69,35 @@ func (q *Queries) DeleteClient(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const getClientsWhere = `-- name: GetClientsWhere :many
-
+const getClientsByBusinessId = `-- name: GetClientsByBusinessId :many
 SELECT
-    client.id, client.created_at, client.updated_at, client.deleted_at, client.business_id, client.fullname, client.email, client.phone,
-    COUNT(client) OVER () AS total_count,
-    COUNT(client) OVER (ORDER BY created_at ASC RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) AS remaining_count
+    id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
 FROM
     client
-
-
 WHERE
-    (   
-        business_id = $1
-        or $1 is null
-    )
-    and (
-        fullname ilike $2
-        or $2 is null
-    )
-    and (
-        email ilike $3
-        or $3 is null
-    )
-    and (
-        phone ilike $4
-        or $4 is null
-    )
+    business_id = $1
 ORDER BY
     created_at DESC
-LIMIT
-    $5 OFFSET $6
 `
 
-type GetClientsWhereParams struct {
-	BusinessID uuid.UUID `db:"business_id" json:"business_id"`
-	Fullname   *string   `db:"fullname" json:"fullname"`
-	Email      *string   `db:"email" json:"email"`
-	Phone      *string   `db:"phone" json:"phone"`
-	Limit      int32     `db:"limit" json:"limit"`
-	Offset     int32     `db:"offset" json:"offset"`
-}
-
-type GetClientsWhereRow struct {
-	Client         Client `db:"client" json:"client"`
-	TotalCount     int64  `db:"total_count" json:"total_count"`
-	RemainingCount int64  `db:"remaining_count" json:"remaining_count"`
-}
-
-func (q *Queries) GetClientsWhere(ctx context.Context, arg GetClientsWhereParams) ([]GetClientsWhereRow, error) {
-	rows, err := q.db.Query(ctx, getClientsWhere,
-		arg.BusinessID,
-		arg.Fullname,
-		arg.Email,
-		arg.Phone,
-		arg.Limit,
-		arg.Offset,
-	)
+func (q *Queries) GetClientsByBusinessId(ctx context.Context, businessID uuid.UUID) ([]Client, error) {
+	rows, err := q.db.Query(ctx, getClientsByBusinessId, businessID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetClientsWhereRow
+	var items []Client
 	for rows.Next() {
-		var i GetClientsWhereRow
+		var i Client
 		if err := rows.Scan(
-			&i.Client.ID,
-			&i.Client.CreatedAt,
-			&i.Client.UpdatedAt,
-			&i.Client.DeletedAt,
-			&i.Client.BusinessID,
-			&i.Client.Fullname,
-			&i.Client.Email,
-			&i.Client.Phone,
-			&i.TotalCount,
-			&i.RemainingCount,
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.BusinessID,
+			&i.Fullname,
+			&i.Email,
+			&i.Phone,
 		); err != nil {
 			return nil, err
 		}
@@ -161,22 +110,20 @@ func (q *Queries) GetClientsWhere(ctx context.Context, arg GetClientsWhereParams
 }
 
 const updateClient = `-- name: UpdateClient :one
-
-
-UPDATE client
+UPDATE
+    client
 SET
     updated_at = timezone('utc', now()),
     fullname = COALESCE($2, fullname),
     email = COALESCE($3, email),
     phone = COALESCE($4, phone)
 WHERE
-    id = $1
-RETURNING id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
+    id = $1 RETURNING id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
 `
 
 type UpdateClientParams struct {
 	ID       uuid.UUID `db:"id" json:"id"`
-	Fullname *string   `db:"fullname" json:"fullname"`
+	Fullname string    `db:"fullname" json:"fullname"`
 	Email    *string   `db:"email" json:"email"`
 	Phone    *string   `db:"phone" json:"phone"`
 }

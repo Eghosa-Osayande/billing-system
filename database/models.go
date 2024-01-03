@@ -27,7 +27,7 @@ type Client struct {
 	UpdatedAt  *time.Time `db:"updated_at" json:"updated_at"`
 	DeletedAt  *time.Time `db:"deleted_at" json:"deleted_at"`
 	BusinessID uuid.UUID  `db:"business_id" json:"business_id"`
-	Fullname   *string    `db:"fullname" json:"fullname"`
+	Fullname   string     `db:"fullname" json:"fullname"`
 	Email      *string    `db:"email" json:"email"`
 	Phone      *string    `db:"phone" json:"phone"`
 }
@@ -44,7 +44,6 @@ type Invoice struct {
 	Notes           *string          `db:"notes" json:"notes"`
 	PaymentMethod   *string          `db:"payment_method" json:"payment_method"`
 	PaymentStatus   *string          `db:"payment_status" json:"payment_status"`
-	Items           []byte           `db:"items" json:"items"`
 	ClientID        *uuid.UUID       `db:"client_id" json:"client_id"`
 	ShippingFeeType *string          `db:"shipping_fee_type" json:"shipping_fee_type"`
 	ShippingFee     *decimal.Decimal `db:"shipping_fee" json:"shipping_fee"`

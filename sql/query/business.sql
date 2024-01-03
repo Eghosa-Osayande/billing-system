@@ -1,8 +1,7 @@
 -- name: CreateBusiness :one
 INSERT INTO
 	business (
-		id,
-		created_at,
+		
 		business_name,
 		business_avatar,
 		owner_id
@@ -10,10 +9,8 @@ INSERT INTO
 VALUES
 	(
 		$1,
-		timezone('utc', now()),
 		$2,
-		$3,
-		$4
+		$3
 	) RETURNING *;
 
 -- name: UpdateBusiness :one

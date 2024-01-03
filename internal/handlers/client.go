@@ -45,15 +45,8 @@ func (handler *ClientHandler) HandleAll(ctx *fiber.Ctx) error {
 		if business == nil {
 			return ctx.JSON(util.NewSuccessResponseWithData[*util.PagedResult[database.Client]]("Create a business first", nil))
 		}
-		limit, offset := util.GetPaginationFromQueries(ctx.Queries())
-		clients, err := handler.config.ClientRepo.GetClients(&database.GetClientsWhereParams{
-			BusinessID: business.ID,
-			Fullname:   nil,
-			Email:      nil,
-			Phone:      nil,
-			Limit:      int32(limit),
-			Offset:     int32(offset),
-		})
+		
+		clients, err := handler.config.ClientRepo.GetClients(business.ID,)
 		if err != nil {
 			log.Println(err)
 			return fiber.NewError(fiber.ErrInternalServerError.Code)
@@ -63,7 +56,7 @@ func (handler *ClientHandler) HandleAll(ctx *fiber.Ctx) error {
 			return ctx.JSON(util.NewSuccessResponseWithData[*util.PagedResult[database.Client]]("No clients found", nil))
 		}
 
-		return ctx.JSON(util.NewSuccessResponseWithData[*util.PagedResult[database.Client]]("Clients found", clients))
+		return ctx.JSON(util.NewSuccessResponseWithData[[]database.Client]("Clients found", clients))
 
 	}
 }
@@ -71,11 +64,8 @@ func (handler *ClientHandler) HandleAll(ctx *fiber.Ctx) error {
 type CreateClientInput struct {
 	Fullname string `json:"fullname" validate:"required"`
 	Email    *string `json:"email" validate:"omitnil,email"`
-	Phone    *string `json:"phone" validate:"omitnil"`
+	Phone    *string `json:"phone" validate:"omitnil,e164"`
 }
-
-
-
 
 func (handler *ClientHandler) HandleCreateClient(ctx *fiber.Ctx) error {
 	input, valErr := util.ValidateRequestBody(ctx.Body(), &CreateClientInput{})
@@ -101,8 +91,7 @@ func (handler *ClientHandler) HandleCreateClient(ctx *fiber.Ctx) error {
 			return ctx.JSON(util.NewSuccessResponseWithData[*database.Client]("Create a business first", nil))
 		}
 		createClientParams:=&database.CreateClientParams{
-			ID:        uuid.New(),
-			Fullname:  &input.Fullname,
+			Fullname:  input.Fullname,
 			Email:     input.Email,
 			Phone:     input.Phone,
 			BusinessID: business.ID,

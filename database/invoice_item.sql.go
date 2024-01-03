@@ -12,7 +12,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-const createInvoiceItem = `-- name: CreateInvoiceItem :exec
+const createInvoiceItem = `-- name: CreateInvoiceItem :one
 INSERT INTO
     invoiceitem (
         invoice_id,
@@ -31,6 +31,7 @@ VALUES
         $5,
         $6
     )
+RETURNING id, created_at, invoice_id, title, price, quantity, discount, discount_type
 `
 
 type CreateInvoiceItemParams struct {
@@ -42,8 +43,8 @@ type CreateInvoiceItemParams struct {
 	DiscountType *string          `db:"discount_type" json:"discount_type"`
 }
 
-func (q *Queries) CreateInvoiceItem(ctx context.Context, arg CreateInvoiceItemParams) error {
-	_, err := q.db.Exec(ctx, createInvoiceItem,
+func (q *Queries) CreateInvoiceItem(ctx context.Context, arg CreateInvoiceItemParams) (Invoiceitem, error) {
+	row := q.db.QueryRow(ctx, createInvoiceItem,
 		arg.InvoiceID,
 		arg.Title,
 		arg.Price,
@@ -51,7 +52,18 @@ func (q *Queries) CreateInvoiceItem(ctx context.Context, arg CreateInvoiceItemPa
 		arg.Discount,
 		arg.DiscountType,
 	)
-	return err
+	var i Invoiceitem
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.InvoiceID,
+		&i.Title,
+		&i.Price,
+		&i.Quantity,
+		&i.Discount,
+		&i.DiscountType,
+	)
+	return i, err
 }
 
 const deleteInvoiceItemByID = `-- name: DeleteInvoiceItemByID :exec
@@ -66,17 +78,17 @@ func (q *Queries) DeleteInvoiceItemByID(ctx context.Context, id uuid.UUID) error
 	return err
 }
 
-const findInvoiceItemsByInvoiceID = `-- name: FindInvoiceItemsByInvoiceID :many
+const findInvoiceItemsByInvoiceId = `-- name: FindInvoiceItemsByInvoiceId :many
 SELECT
     id, created_at, invoice_id, title, price, quantity, discount, discount_type
 FROM
     invoiceitem
 WHERE
-    invoice_id = $1
+    (invoiceitem.invoice_id = $1)
 `
 
-func (q *Queries) FindInvoiceItemsByInvoiceID(ctx context.Context, invoiceID uuid.UUID) ([]Invoiceitem, error) {
-	rows, err := q.db.Query(ctx, findInvoiceItemsByInvoiceID, invoiceID)
+func (q *Queries) FindInvoiceItemsByInvoiceId(ctx context.Context, invoiceID uuid.UUID) ([]Invoiceitem, error) {
+	rows, err := q.db.Query(ctx, findInvoiceItemsByInvoiceId, invoiceID)
 	if err != nil {
 		return nil, err
 	}

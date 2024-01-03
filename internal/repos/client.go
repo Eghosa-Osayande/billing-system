@@ -2,10 +2,9 @@ package repos
 
 import (
 	"blanq_invoice/database"
-	"blanq_invoice/util"
 	"context"
 
-	
+	"github.com/google/uuid"
 )
 
 type ClientRepo struct {
@@ -20,10 +19,10 @@ func NewClientRepo(db *database.Queries) *ClientRepo {
 
 }
 
-func (repo *ClientRepo) GetClients(input *database.GetClientsWhereParams) (*util.PagedResult[database.Client], error) {
+func (repo *ClientRepo) GetClients(businessId uuid.UUID) ([]database.Client, error) {
 	ctx := context.Background()
 
-	clients, err := repo.db.GetClientsWhere(ctx, *input)
+	clients, err := repo.db.GetClientsByBusinessId(ctx, businessId)
 
 	if database.IsErrNoRows(err) {
 		return nil, nil
@@ -34,16 +33,10 @@ func (repo *ClientRepo) GetClients(input *database.GetClientsWhereParams) (*util
 	}
 
 	clientList := []database.Client{}
-	total := 0
-	
 
-	for index := range clients {
-		clientList = append(clientList, clients[index].Client)
-		total = int(clients[index].TotalCount)
-		
-	}
+	clientList = append(clientList, clients...)
 
-	return util.NewPagedResult[database.Client](clientList, total, ), nil
+	return clientList, nil
 
 }
 

@@ -25,8 +25,7 @@ INSERT INTO
         payment_status,
         client_id,
         shipping_fee_type,
-        shipping_fee,
-        items
+        shipping_fee
     )
 VALUES
     (
@@ -39,9 +38,8 @@ VALUES
         $7,
         $8,
         $9,
-        $10,
-        $11
-    ) RETURNING id, created_at, updated_at, deleted_at, business_id, currency, payment_due_date, date_of_issue, notes, payment_method, payment_status, items, client_id, shipping_fee_type, shipping_fee
+        $10
+    ) RETURNING id, created_at, updated_at, deleted_at, business_id, currency, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee
 `
 
 type CreateInvoiceParams struct {
@@ -55,7 +53,6 @@ type CreateInvoiceParams struct {
 	ClientID        *uuid.UUID       `db:"client_id" json:"client_id"`
 	ShippingFeeType *string          `db:"shipping_fee_type" json:"shipping_fee_type"`
 	ShippingFee     *decimal.Decimal `db:"shipping_fee" json:"shipping_fee"`
-	Items           []byte           `db:"items" json:"items"`
 }
 
 func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error) {
@@ -70,7 +67,6 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		arg.ClientID,
 		arg.ShippingFeeType,
 		arg.ShippingFee,
-		arg.Items,
 	)
 	var i Invoice
 	err := row.Scan(
@@ -85,7 +81,6 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		&i.Notes,
 		&i.PaymentMethod,
 		&i.PaymentStatus,
-		&i.Items,
 		&i.ClientID,
 		&i.ShippingFeeType,
 		&i.ShippingFee,
@@ -105,96 +100,50 @@ func (q *Queries) DeleteInvoiceById(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const getInvoiceWhere = `-- name: GetInvoiceWhere :many
+const findInvoiceById = `-- name: FindInvoiceById :one
 SELECT
-    invoice.id, invoice.created_at, invoice.updated_at, invoice.deleted_at, invoice.business_id, invoice.currency, invoice.payment_due_date, invoice.date_of_issue, invoice.notes, invoice.payment_method, invoice.payment_status, invoice.items, invoice.client_id, invoice.shipping_fee_type, invoice.shipping_fee,
-    COUNT(*) OVER () AS total_count
+    invoice.id, invoice.created_at, invoice.updated_at, invoice.deleted_at, invoice.business_id, invoice.currency, invoice.payment_due_date, invoice.date_of_issue, invoice.notes, invoice.payment_method, invoice.payment_status, invoice.client_id, invoice.shipping_fee_type, invoice.shipping_fee,
+    invoiceitem.id, invoiceitem.created_at, invoiceitem.invoice_id, invoiceitem.title, invoiceitem.price, invoiceitem.quantity, invoiceitem.discount, invoiceitem.discount_type
 FROM
     invoice
+JOIN invoiceitem ON invoiceitem.invoice_id = invoice.id
 WHERE
-    (business_id = COALESCE($1, business_id))
-    AND (id = COALESCE($2, id))
-    AND (client_id = COALESCE($3, client_id))
-    AND (payment_status = COALESCE($4, payment_status))
-    AND (payment_method = COALESCE($5, payment_method))
-    AND (
-        shipping_fee_type = COALESCE($6, shipping_fee_type)
-    )
-    AND (currency = COALESCE($7, currency))
-    AND (payment_status = COALESCE($8, payment_status))
-    AND (payment_method = COALESCE($9, payment_method))
-ORDER BY
-    created_at ASC
-LIMIT
-    $10 OFFSET $11
+    (invoice.id = $1)
 `
 
-type GetInvoiceWhereParams struct {
-	BusinessID      uuid.UUID  `db:"business_id" json:"business_id"`
-	ID              uuid.UUID  `db:"id" json:"id"`
-	ClientID        *uuid.UUID `db:"client_id" json:"client_id"`
-	PaymentStatus   *string    `db:"payment_status" json:"payment_status"`
-	PaymentMethod   *string    `db:"payment_method" json:"payment_method"`
-	ShippingFeeType *string    `db:"shipping_fee_type" json:"shipping_fee_type"`
-	Currency        *string    `db:"currency" json:"currency"`
-	PaymentStatus_2 *string    `db:"payment_status_2" json:"payment_status_2"`
-	PaymentMethod_2 *string    `db:"payment_method_2" json:"payment_method_2"`
-	Limit           int32      `db:"limit" json:"limit"`
-	Offset          int32      `db:"offset" json:"offset"`
+type FindInvoiceByIdRow struct {
+	Invoice     Invoice     `db:"invoice" json:"invoice"`
+	Invoiceitem Invoiceitem `db:"invoiceitem" json:"invoiceitem"`
 }
 
-type GetInvoiceWhereRow struct {
-	Invoice    Invoice `db:"invoice" json:"invoice"`
-	TotalCount int64   `db:"total_count" json:"total_count"`
-}
-
-func (q *Queries) GetInvoiceWhere(ctx context.Context, arg GetInvoiceWhereParams) ([]GetInvoiceWhereRow, error) {
-	rows, err := q.db.Query(ctx, getInvoiceWhere,
-		arg.BusinessID,
-		arg.ID,
-		arg.ClientID,
-		arg.PaymentStatus,
-		arg.PaymentMethod,
-		arg.ShippingFeeType,
-		arg.Currency,
-		arg.PaymentStatus_2,
-		arg.PaymentMethod_2,
-		arg.Limit,
-		arg.Offset,
+func (q *Queries) FindInvoiceById(ctx context.Context, id uuid.UUID) (FindInvoiceByIdRow, error) {
+	row := q.db.QueryRow(ctx, findInvoiceById, id)
+	var i FindInvoiceByIdRow
+	err := row.Scan(
+		&i.Invoice.ID,
+		&i.Invoice.CreatedAt,
+		&i.Invoice.UpdatedAt,
+		&i.Invoice.DeletedAt,
+		&i.Invoice.BusinessID,
+		&i.Invoice.Currency,
+		&i.Invoice.PaymentDueDate,
+		&i.Invoice.DateOfIssue,
+		&i.Invoice.Notes,
+		&i.Invoice.PaymentMethod,
+		&i.Invoice.PaymentStatus,
+		&i.Invoice.ClientID,
+		&i.Invoice.ShippingFeeType,
+		&i.Invoice.ShippingFee,
+		&i.Invoiceitem.ID,
+		&i.Invoiceitem.CreatedAt,
+		&i.Invoiceitem.InvoiceID,
+		&i.Invoiceitem.Title,
+		&i.Invoiceitem.Price,
+		&i.Invoiceitem.Quantity,
+		&i.Invoiceitem.Discount,
+		&i.Invoiceitem.DiscountType,
 	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetInvoiceWhereRow
-	for rows.Next() {
-		var i GetInvoiceWhereRow
-		if err := rows.Scan(
-			&i.Invoice.ID,
-			&i.Invoice.CreatedAt,
-			&i.Invoice.UpdatedAt,
-			&i.Invoice.DeletedAt,
-			&i.Invoice.BusinessID,
-			&i.Invoice.Currency,
-			&i.Invoice.PaymentDueDate,
-			&i.Invoice.DateOfIssue,
-			&i.Invoice.Notes,
-			&i.Invoice.PaymentMethod,
-			&i.Invoice.PaymentStatus,
-			&i.Invoice.Items,
-			&i.Invoice.ClientID,
-			&i.Invoice.ShippingFeeType,
-			&i.Invoice.ShippingFee,
-			&i.TotalCount,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+	return i, err
 }
 
 const updateInvoice = `-- name: UpdateInvoice :one
@@ -210,10 +159,10 @@ SET
     payment_status = COALESCE($7, payment_status),
     client_id = COALESCE($8, client_id),
     shipping_fee_type = COALESCE($9, shipping_fee_type),
-    shipping_fee = COALESCE($10, shipping_fee),
-    items = COALESCE($11, items)
+    shipping_fee = COALESCE($10, shipping_fee)
+    
 WHERE
-    id = $1 RETURNING id, created_at, updated_at, deleted_at, business_id, currency, payment_due_date, date_of_issue, notes, payment_method, payment_status, items, client_id, shipping_fee_type, shipping_fee
+    id = $1 RETURNING id, created_at, updated_at, deleted_at, business_id, currency, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee
 `
 
 type UpdateInvoiceParams struct {
@@ -227,7 +176,6 @@ type UpdateInvoiceParams struct {
 	ClientID        *uuid.UUID       `db:"client_id" json:"client_id"`
 	ShippingFeeType *string          `db:"shipping_fee_type" json:"shipping_fee_type"`
 	ShippingFee     *decimal.Decimal `db:"shipping_fee" json:"shipping_fee"`
-	Items           []byte           `db:"items" json:"items"`
 }
 
 func (q *Queries) UpdateInvoice(ctx context.Context, arg UpdateInvoiceParams) (Invoice, error) {
@@ -242,7 +190,6 @@ func (q *Queries) UpdateInvoice(ctx context.Context, arg UpdateInvoiceParams) (I
 		arg.ClientID,
 		arg.ShippingFeeType,
 		arg.ShippingFee,
-		arg.Items,
 	)
 	var i Invoice
 	err := row.Scan(
@@ -257,7 +204,6 @@ func (q *Queries) UpdateInvoice(ctx context.Context, arg UpdateInvoiceParams) (I
 		&i.Notes,
 		&i.PaymentMethod,
 		&i.PaymentStatus,
-		&i.Items,
 		&i.ClientID,
 		&i.ShippingFeeType,
 		&i.ShippingFee,

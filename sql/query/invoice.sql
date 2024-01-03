@@ -10,8 +10,7 @@ INSERT INTO
         payment_status,
         client_id,
         shipping_fee_type,
-        shipping_fee,
-        items
+        shipping_fee
     )
 VALUES
     (
@@ -24,8 +23,7 @@ VALUES
         $7,
         $8,
         $9,
-        $10,
-        $11
+        $10
     ) RETURNING *;
 
 -- name: UpdateInvoice :one
@@ -41,8 +39,8 @@ SET
     payment_status = COALESCE($7, payment_status),
     client_id = COALESCE($8, client_id),
     shipping_fee_type = COALESCE($9, shipping_fee_type),
-    shipping_fee = COALESCE($10, shipping_fee),
-    items = COALESCE($11, items)
+    shipping_fee = COALESCE($10, shipping_fee)
+    
 WHERE
     id = $1 RETURNING *;
 
@@ -52,25 +50,12 @@ Delete From
 WHERE
     id = $1;
 
--- name: GetInvoiceWhere :many
+-- name: FindInvoiceById :one
 SELECT
     sqlc.embed(invoice),
-    COUNT(*) OVER () AS total_count
+    sqlc.embed(invoiceitem)
 FROM
     invoice
+JOIN invoiceitem ON invoiceitem.invoice_id = invoice.id
 WHERE
-    (business_id = COALESCE($1, business_id))
-    AND (id = COALESCE($2, id))
-    AND (client_id = COALESCE($3, client_id))
-    AND (payment_status = COALESCE($4, payment_status))
-    AND (payment_method = COALESCE($5, payment_method))
-    AND (
-        shipping_fee_type = COALESCE($6, shipping_fee_type)
-    )
-    AND (currency = COALESCE($7, currency))
-    AND (payment_status = COALESCE($8, payment_status))
-    AND (payment_method = COALESCE($9, payment_method))
-ORDER BY
-    created_at ASC
-LIMIT
-    $10 OFFSET $11;
+    (invoice.id = $1);
