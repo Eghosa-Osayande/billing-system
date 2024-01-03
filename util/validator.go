@@ -52,7 +52,7 @@ func ValidateRequestBody[T any](body []byte, output T) (T, error) {
 
 	if err := json.Unmarshal(body, output); err != nil {
 		log.Println(err)
-		return output, ErrorInvalidJsonInput
+		return output, err
 	}
 	if valErr := ValidateStruct(output); valErr != nil {
 		return output, valErr

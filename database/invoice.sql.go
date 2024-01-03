@@ -100,6 +100,45 @@ func (q *Queries) DeleteInvoiceById(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const findAllBusinessInvoices = `-- name: FindAllBusinessInvoices :many
+SELECT id, created_at, updated_at, deleted_at, business_id, currency, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee FROM invoice WHERE business_id = $1 ORDER BY created_at DESC
+`
+
+func (q *Queries) FindAllBusinessInvoices(ctx context.Context, businessID uuid.UUID) ([]Invoice, error) {
+	rows, err := q.db.Query(ctx, findAllBusinessInvoices, businessID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Invoice
+	for rows.Next() {
+		var i Invoice
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.BusinessID,
+			&i.Currency,
+			&i.PaymentDueDate,
+			&i.DateOfIssue,
+			&i.Notes,
+			&i.PaymentMethod,
+			&i.PaymentStatus,
+			&i.ClientID,
+			&i.ShippingFeeType,
+			&i.ShippingFee,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findInvoiceById = `-- name: FindInvoiceById :one
 SELECT
     invoice.id, invoice.created_at, invoice.updated_at, invoice.deleted_at, invoice.business_id, invoice.currency, invoice.payment_due_date, invoice.date_of_issue, invoice.notes, invoice.payment_method, invoice.payment_status, invoice.client_id, invoice.shipping_fee_type, invoice.shipping_fee,

@@ -91,7 +91,7 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 		verificationData := &database.CreateOrUpdateUserEmailVerificationParams{
 			Email:     createuserInput.Email,
 			Code:      generateOTP(),
-			ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute)}
+			ExpiresAt: generateOtpExpiration()}
 
 		verificationErr := handler.config.AuthRepo.CreateOrUpdateUserEmailVerificationData(verificationData)
 
@@ -140,7 +140,7 @@ func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 	verificationData := &database.CreateOrUpdateUserEmailVerificationParams{
 		Email:     input.Email,
 		Code:      generateOTP(),
-		ExpiresAt: time.Now().UTC().Add(time.Duration(5) * time.Minute)}
+		ExpiresAt: generateOtpExpiration()}
 
 	err = handler.config.AuthRepo.CreateOrUpdateUserEmailVerificationData(verificationData)
 
@@ -267,6 +267,10 @@ func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
 	} else {
 		return fiber.NewError(400, "Invalid login details")
 	}
+}
+
+func generateOtpExpiration() time.Time {
+	return time.Now().UTC().Add(time.Duration(5) * time.Minute)
 }
 
 func generateOTP() string {

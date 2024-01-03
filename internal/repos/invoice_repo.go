@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -19,6 +20,28 @@ func NewInvoiceRepo(db *database.Queries) *InvoiceRepo {
 		db: db,
 	}
 
+}
+
+func (repo *InvoiceRepo) FindAllInvoicesByBusinessID(businessID uuid.UUID) ([]database.InvoiceWithItems, error) {
+	ctx := context.Background()
+	invoices, err := repo.db.FindAllBusinessInvoices(ctx, businessID)
+	if err != nil {
+		return nil, err
+	}
+
+	invoiceWithItems := make([]database.InvoiceWithItems, len(invoices))
+	for index := range invoices {
+		invoice := invoices[index]
+		invoiceitems, err := repo.db.FindInvoiceItemsByInvoiceId(ctx, invoice.ID)
+		if err != nil {
+			return nil, err
+		}
+		invoiceWithItems[index]= database.InvoiceWithItems{
+			Invoice: invoice,
+			Items: invoiceitems,
+		}
+	}
+	return invoiceWithItems, nil
 }
 
 func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, items []database.CreateInvoiceItemParams) (*database.InvoiceWithItems, error) {

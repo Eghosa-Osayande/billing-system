@@ -59,3 +59,6 @@ FROM
 JOIN invoiceitem ON invoiceitem.invoice_id = invoice.id
 WHERE
     (invoice.id = $1);
+
+-- name: FindAllBusinessInvoices :many
+SELECT * FROM invoice WHERE business_id = $1 ORDER BY created_at DESC;

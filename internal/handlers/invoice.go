@@ -45,22 +45,28 @@ func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
 			return ctx.JSON(util.NewSuccessResponseWithData[*util.PagedResult[database.Invoice]]("Create a business first", nil))
 		}
 
-		return ctx.SendString("Hello")
+		invoices, err := handler.config.InvoiceRepo.FindAllInvoicesByBusinessID(business.ID)
+		if err != nil {
+			log.Println(err)
+			return fiber.NewError(fiber.ErrInternalServerError.Code)
+		}
+
+		return ctx.JSON(util.NewSuccessResponseWithData[any]("Success", invoices))
 	}
 }
 
 type InvoiceItemInput struct {
 	Name         string           `json:"name" validate:"required" db:"name"`
-	Price        decimal.Decimal  `json:"price" validate:"required" db:"price"`
-	Quantity     int              `json:"quantity" validate:"required" db:"quantity"`
-	Discount     *decimal.Decimal `json:"discount" db:"discount"`
+	Price        decimal.Decimal  `json:"price" validate:"required,number" db:"price"`
+	Quantity     int              `json:"quantity" validate:"required,number" db:"quantity"`
+	Discount     *decimal.Decimal `json:"discount" db:"discount,number"`
 	DiscountType *string          `json:"discount_type" db:"discount_type"`
 }
 
 type CreateInvoiceInput struct {
 	Currency        *string             `json:"currency"`
-	PaymentDueDate  *time.Time          `json:"payment_due_date" validate:"omitnil,datetime=2006-01-02"`
-	DateOfIssue     *time.Time          `json:"date_of_issue"`
+	PaymentDueDate  *string             `json:"payment_due_date" validate:"omitnil,datetime=2006-01-02"`
+	DateOfIssue     *string             `json:"date_of_issue" validate:"omitnil,datetime=2006-01-02"`
 	Notes           *string             `json:"notes"`
 	PaymentMethod   *string             `json:"payment_method"`
 	PaymentStatus   *string             `json:"payment_status"`
@@ -114,13 +120,28 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 				}
 			}
 		}
-
+		var paymentDueDate *time.Time
+		if input.PaymentDueDate != nil {
+			paymentDueDate = new(time.Time)
+			*paymentDueDate, err = time.Parse("2006-01-02", *input.PaymentDueDate)
+			if err != nil {
+				return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid date format")
+			}
+		}
+		var issueDate *time.Time
+		if input.DateOfIssue != nil {
+			issueDate = new(time.Time)
+			*issueDate, err = time.Parse("2006-01-02", *input.DateOfIssue)
+			if err != nil {
+				return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid date format")
+			}
+		}
 		invoice, err := handler.config.InvoiceRepo.CreateInvoice(
 			&database.CreateInvoiceParams{
 				BusinessID:      business.ID,
 				Currency:        input.Currency,
-				PaymentDueDate:  input.PaymentDueDate,
-				DateOfIssue:     input.DateOfIssue,
+				PaymentDueDate:  paymentDueDate,
+				DateOfIssue:     issueDate,
 				Notes:           input.Notes,
 				PaymentMethod:   input.PaymentMethod,
 				PaymentStatus:   input.PaymentStatus,
