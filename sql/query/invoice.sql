@@ -1,8 +1,6 @@
 -- name: CreateInvoice :one
 INSERT INTO
     invoice (
-        id,
-        created_at,
         business_id,
         currency,
         payment_due_date,
@@ -18,7 +16,6 @@ INSERT INTO
 VALUES
     (
         $1,
-        timezone('utc', now()),
         $2,
         $3,
         $4,
@@ -28,8 +25,7 @@ VALUES
         $8,
         $9,
         $10,
-        $11,
-        $12
+        $11
     ) RETURNING *;
 
 -- name: UpdateInvoice :one

@@ -21,15 +21,17 @@ func NewClientHandler(config *repos.ApiRepos) *ClientHandler {
 func (handler *ClientHandler) RegisterHandlers(router fiber.Router) {
 	router.Get("/all", handler.HandleAll)
 	router.Post("/new", handler.HandleCreateClient)
-	router.Post("/update", handler.HandleAll)
+	
 
 }
+
 
 
 func (handler *ClientHandler) HandleAll(ctx *fiber.Ctx) error {
 	if userId, ok := ctx.Context().UserValue("user_id").(string); !ok {
 		return fiber.NewError(fiber.ErrUnauthorized.Code, "Unauthorized")
 	} else {
+		
 		userId, err := uuid.Parse(userId)
 		if err != nil {
 			log.Println(err)
@@ -43,13 +45,14 @@ func (handler *ClientHandler) HandleAll(ctx *fiber.Ctx) error {
 		if business == nil {
 			return ctx.JSON(util.NewSuccessResponseWithData[*util.PagedResult[database.Client]]("Create a business first", nil))
 		}
+		limit, offset := util.GetPaginationFromQueries(ctx.Queries())
 		clients, err := handler.config.ClientRepo.GetClients(&database.GetClientsWhereParams{
 			BusinessID: business.ID,
 			Fullname:   nil,
 			Email:      nil,
 			Phone:      nil,
-			Limit:      10,
-			Offset:     0,
+			Limit:      int32(limit),
+			Offset:     int32(offset),
 		})
 		if err != nil {
 			log.Println(err)

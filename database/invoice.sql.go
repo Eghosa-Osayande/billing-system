@@ -10,14 +10,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/shopspring/decimal"
 )
 
 const createInvoice = `-- name: CreateInvoice :one
 INSERT INTO
     invoice (
-        id,
-        created_at,
         business_id,
         currency,
         payment_due_date,
@@ -27,12 +25,12 @@ INSERT INTO
         payment_status,
         client_id,
         shipping_fee_type,
-        shipping_fee
+        shipping_fee,
+        items
     )
 VALUES
     (
         $1,
-        timezone('utc', now()),
         $2,
         $3,
         $4,
@@ -47,22 +45,21 @@ VALUES
 `
 
 type CreateInvoiceParams struct {
-	ID              uuid.UUID      `db:"id" json:"id"`
-	BusinessID      uuid.UUID      `db:"business_id" json:"business_id"`
-	Currency        *string        `db:"currency" json:"currency"`
-	PaymentDueDate  *time.Time     `db:"payment_due_date" json:"payment_due_date"`
-	DateOfIssue     *time.Time     `db:"date_of_issue" json:"date_of_issue"`
-	Notes           *string        `db:"notes" json:"notes"`
-	PaymentMethod   *string        `db:"payment_method" json:"payment_method"`
-	PaymentStatus   *string        `db:"payment_status" json:"payment_status"`
-	ClientID        *uuid.UUID     `db:"client_id" json:"client_id"`
-	ShippingFeeType *string        `db:"shipping_fee_type" json:"shipping_fee_type"`
-	ShippingFee     pgtype.Numeric `db:"shipping_fee" json:"shipping_fee"`
+	BusinessID      uuid.UUID        `db:"business_id" json:"business_id"`
+	Currency        *string          `db:"currency" json:"currency"`
+	PaymentDueDate  *time.Time       `db:"payment_due_date" json:"payment_due_date"`
+	DateOfIssue     *time.Time       `db:"date_of_issue" json:"date_of_issue"`
+	Notes           *string          `db:"notes" json:"notes"`
+	PaymentMethod   *string          `db:"payment_method" json:"payment_method"`
+	PaymentStatus   *string          `db:"payment_status" json:"payment_status"`
+	ClientID        *uuid.UUID       `db:"client_id" json:"client_id"`
+	ShippingFeeType *string          `db:"shipping_fee_type" json:"shipping_fee_type"`
+	ShippingFee     *decimal.Decimal `db:"shipping_fee" json:"shipping_fee"`
+	Items           []byte           `db:"items" json:"items"`
 }
 
 func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error) {
 	row := q.db.QueryRow(ctx, createInvoice,
-		arg.ID,
 		arg.BusinessID,
 		arg.Currency,
 		arg.PaymentDueDate,
@@ -73,6 +70,7 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		arg.ClientID,
 		arg.ShippingFeeType,
 		arg.ShippingFee,
+		arg.Items,
 	)
 	var i Invoice
 	err := row.Scan(
@@ -110,12 +108,7 @@ func (q *Queries) DeleteInvoiceById(ctx context.Context, id uuid.UUID) error {
 const getInvoiceWhere = `-- name: GetInvoiceWhere :many
 SELECT
     invoice.id, invoice.created_at, invoice.updated_at, invoice.deleted_at, invoice.business_id, invoice.currency, invoice.payment_due_date, invoice.date_of_issue, invoice.notes, invoice.payment_method, invoice.payment_status, invoice.items, invoice.client_id, invoice.shipping_fee_type, invoice.shipping_fee,
-    COUNT(*) OVER () AS total_count,
-    COUNT(*) OVER (
-        ORDER BY
-            created_at ASC RANGE BETWEEN CURRENT ROW
-            AND UNBOUNDED FOLLOWING
-    ) AS remaining_count
+    COUNT(*) OVER () AS total_count
 FROM
     invoice
 WHERE
@@ -151,9 +144,8 @@ type GetInvoiceWhereParams struct {
 }
 
 type GetInvoiceWhereRow struct {
-	Invoice        Invoice `db:"invoice" json:"invoice"`
-	TotalCount     int64   `db:"total_count" json:"total_count"`
-	RemainingCount int64   `db:"remaining_count" json:"remaining_count"`
+	Invoice    Invoice `db:"invoice" json:"invoice"`
+	TotalCount int64   `db:"total_count" json:"total_count"`
 }
 
 func (q *Queries) GetInvoiceWhere(ctx context.Context, arg GetInvoiceWhereParams) ([]GetInvoiceWhereRow, error) {
@@ -194,7 +186,6 @@ func (q *Queries) GetInvoiceWhere(ctx context.Context, arg GetInvoiceWhereParams
 			&i.Invoice.ShippingFeeType,
 			&i.Invoice.ShippingFee,
 			&i.TotalCount,
-			&i.RemainingCount,
 		); err != nil {
 			return nil, err
 		}
@@ -219,22 +210,24 @@ SET
     payment_status = COALESCE($7, payment_status),
     client_id = COALESCE($8, client_id),
     shipping_fee_type = COALESCE($9, shipping_fee_type),
-    shipping_fee = COALESCE($10, shipping_fee)
+    shipping_fee = COALESCE($10, shipping_fee),
+    items = COALESCE($11, items)
 WHERE
     id = $1 RETURNING id, created_at, updated_at, deleted_at, business_id, currency, payment_due_date, date_of_issue, notes, payment_method, payment_status, items, client_id, shipping_fee_type, shipping_fee
 `
 
 type UpdateInvoiceParams struct {
-	ID              uuid.UUID      `db:"id" json:"id"`
-	Currency        *string        `db:"currency" json:"currency"`
-	PaymentDueDate  *time.Time     `db:"payment_due_date" json:"payment_due_date"`
-	DateOfIssue     *time.Time     `db:"date_of_issue" json:"date_of_issue"`
-	Notes           *string        `db:"notes" json:"notes"`
-	PaymentMethod   *string        `db:"payment_method" json:"payment_method"`
-	PaymentStatus   *string        `db:"payment_status" json:"payment_status"`
-	ClientID        *uuid.UUID     `db:"client_id" json:"client_id"`
-	ShippingFeeType *string        `db:"shipping_fee_type" json:"shipping_fee_type"`
-	ShippingFee     pgtype.Numeric `db:"shipping_fee" json:"shipping_fee"`
+	ID              uuid.UUID        `db:"id" json:"id"`
+	Currency        *string          `db:"currency" json:"currency"`
+	PaymentDueDate  *time.Time       `db:"payment_due_date" json:"payment_due_date"`
+	DateOfIssue     *time.Time       `db:"date_of_issue" json:"date_of_issue"`
+	Notes           *string          `db:"notes" json:"notes"`
+	PaymentMethod   *string          `db:"payment_method" json:"payment_method"`
+	PaymentStatus   *string          `db:"payment_status" json:"payment_status"`
+	ClientID        *uuid.UUID       `db:"client_id" json:"client_id"`
+	ShippingFeeType *string          `db:"shipping_fee_type" json:"shipping_fee_type"`
+	ShippingFee     *decimal.Decimal `db:"shipping_fee" json:"shipping_fee"`
+	Items           []byte           `db:"items" json:"items"`
 }
 
 func (q *Queries) UpdateInvoice(ctx context.Context, arg UpdateInvoiceParams) (Invoice, error) {
@@ -249,6 +242,7 @@ func (q *Queries) UpdateInvoice(ctx context.Context, arg UpdateInvoiceParams) (I
 		arg.ClientID,
 		arg.ShippingFeeType,
 		arg.ShippingFee,
+		arg.Items,
 	)
 	var i Invoice
 	err := row.Scan(

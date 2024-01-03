@@ -52,6 +52,5 @@ Create table if not exists invoice (
 
 -- +goose Down
 
-DROP TABLE IF EXISTS invoice_item;
 DROP TABLE IF EXISTS invoice;
 DROP TABLE IF EXISTS client;

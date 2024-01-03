@@ -35,15 +35,15 @@ func (repo *ClientRepo) GetClients(input *database.GetClientsWhereParams) (*util
 
 	clientList := []database.Client{}
 	total := 0
-	remaining := 0
+	
 
 	for index := range clients {
 		clientList = append(clientList, clients[index].Client)
 		total = int(clients[index].TotalCount)
-		remaining = int(clients[index].RemainingCount)
+		
 	}
 
-	return util.NewPagedResult[database.Client](clientList, total, remaining), nil
+	return util.NewPagedResult[database.Client](clientList, total, ), nil
 
 }
 

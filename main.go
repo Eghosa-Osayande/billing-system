@@ -16,6 +16,7 @@ import (
 	"github.com/gofiber/swagger"
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 // @title Blanq Invoice API
@@ -52,12 +53,16 @@ func main() {
 		panic(err)
 	}
 
+	
+	
+
 	app := fiber.New()
 	db := database.New(conn)
 	config := repos.NewApiRepos(repos.ApiReposParams{
 		ClientRepo:   repos.NewClientRepo(db),
 		BusinessRepo: repos.NewBusinessRepo(db),
 		AuthRepo:     repos.NewAuthRepo(db),
+		InvoiceRepo:  repos.NewInvoiceRepo(db),
 	})
 
 	app.Use(util.ErrorMessageMiddleware)
@@ -80,6 +85,11 @@ func main() {
 	clientRoute := app.Group("/clients")
 	clientRoute.Use(middlewares.AuthenticatedUserMiddleware)
 	clientHandler.RegisterHandlers(clientRoute)
+
+	invoiceHandler := handlers.NewInvoiceHandler(config)
+	invoiceRoute := app.Group("/invoices")
+	invoiceRoute.Use(middlewares.AuthenticatedUserMiddleware)
+	invoiceHandler.RegisterHandlers(invoiceRoute)
 
 	if err := app.Listen(":" + port); err != nil {
 		log.Fatal("Server failed to start")

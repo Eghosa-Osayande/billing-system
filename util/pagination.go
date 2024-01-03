@@ -1,50 +1,40 @@
 package util
 
-import (
-	"encoding/base64"
-	"errors"
-	"fmt"
-	"strings"
-	"time"
-)
-
+import "strconv"
 
 type PagedResult[k any] struct {
 	Items []k `json:"items"`
 	Total int `json:"total"`
-	Remaining int `json:"remaining"`
 }
 
-func NewPagedResult[k any](items []k, total int, remaining int) *PagedResult[k] {
-	
+func NewPagedResult[k any](items []k, total int) *PagedResult[k] {
+
 	return &PagedResult[k]{
 		Items: items,
 		Total: total,
-		Remaining: remaining,
 	}
 }
 
-func DecodeCursor(encodedCursor string) (res time.Time, uuid string, err error) {
-	byt, err := base64.StdEncoding.DecodeString(encodedCursor)
-	if err != nil {
-		return
-	}
+func GetPaginationFromQueries(queries map[string]string) (int, int) {
+	limit := 10
+	offset := 0
+	if perpage, ok := queries["perpage"]; ok {
+		perpagex, err := strconv.Atoi(perpage)
+		if err == nil {
 
-	arrStr := strings.Split(string(byt), ",")
-	if len(arrStr) != 2 {
-		err = errors.New("cursor is invalid")
-		return
+			if perpagex > 0 {
+				limit = perpagex
+			}
+		}
 	}
-
-	res, err = time.Parse(time.RFC3339Nano, arrStr[0])
-	if err != nil {
-		return
+	
+	if page, ok := queries["page"]; ok {
+		pagex, err := strconv.Atoi(page)
+		if err == nil {
+			if offset = (pagex - 1)*limit; offset < 0 {
+				offset = 0
+			}
+		}
 	}
-	uuid = arrStr[1]
-	return
-}
-
-func EncodeCursor(t time.Time, uuid string) string {
-	key := fmt.Sprintf("%s,%s", t.Format(time.RFC3339Nano), uuid)
-	return base64.StdEncoding.EncodeToString([]byte(key))
+	return limit, offset
 }
