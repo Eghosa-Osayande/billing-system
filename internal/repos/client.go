@@ -4,8 +4,8 @@ import (
 	"blanq_invoice/database"
 	"blanq_invoice/util"
 	"context"
+
 	
-	"github.com/google/uuid"
 )
 
 type ClientRepo struct {
@@ -24,7 +24,7 @@ func (repo *ClientRepo) GetClients(input *database.GetClientsWhereParams) (*util
 	ctx := context.Background()
 
 	clients, err := repo.db.GetClientsWhere(ctx, *input)
-	
+
 	if database.IsErrNoRows(err) {
 		return nil, nil
 	}
@@ -47,26 +47,15 @@ func (repo *ClientRepo) GetClients(input *database.GetClientsWhereParams) (*util
 
 }
 
-func (repo *ClientRepo) UpdateBusiness(input *database.UpdateBusinessParams) (*database.Business, error) {
+func (repo *ClientRepo) CreateClient(input *database.CreateClientParams) (*database.Client, error) {
 	ctx := context.Background()
 
-	newbusiness, err := repo.db.UpdateBusiness(ctx, *input)
+	client, err := repo.db.CreateClient(ctx, *input)
+
 	if err != nil {
 		return nil, err
 	}
 
-	return &newbusiness, nil
-
-}
-
-func (repo *ClientRepo) FindBusinessByUserID(id uuid.UUID) (*database.Business, error) {
-	ctx := context.Background()
-
-	business, err := repo.db.FindBusinessByUserID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	return &business, nil
+	return &client, nil
 
 }

@@ -12,7 +12,8 @@ INSERT INTO
         payment_status,
         client_id,
         shipping_fee_type,
-        shipping_fee
+        shipping_fee,
+        items
     )
 VALUES
     (
@@ -27,7 +28,8 @@ VALUES
         $8,
         $9,
         $10,
-        $11
+        $11,
+        $12
     ) RETURNING *;
 
 -- name: UpdateInvoice :one
@@ -43,7 +45,8 @@ SET
     payment_status = COALESCE($7, payment_status),
     client_id = COALESCE($8, client_id),
     shipping_fee_type = COALESCE($9, shipping_fee_type),
-    shipping_fee = COALESCE($10, shipping_fee)
+    shipping_fee = COALESCE($10, shipping_fee),
+    items = COALESCE($11, items)
 WHERE
     id = $1 RETURNING *;
 
@@ -56,12 +59,7 @@ WHERE
 -- name: GetInvoiceWhere :many
 SELECT
     sqlc.embed(invoice),
-    COUNT(*) OVER () AS total_count,
-    COUNT(*) OVER (
-        ORDER BY
-            created_at ASC RANGE BETWEEN CURRENT ROW
-            AND UNBOUNDED FOLLOWING
-    ) AS remaining_count
+    COUNT(*) OVER () AS total_count
 FROM
     invoice
 WHERE

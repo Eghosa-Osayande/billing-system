@@ -65,6 +65,6 @@ WHERE
         or $4 is null
     )
 ORDER BY
-    created_at ASC
+    created_at DESC
 LIMIT
     $5 OFFSET $6;
