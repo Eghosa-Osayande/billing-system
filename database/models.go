@@ -67,7 +67,6 @@ type User struct {
 	DeletedAt     *time.Time `db:"deleted_at" json:"deleted_at"`
 	Fullname      string     `db:"fullname" json:"fullname"`
 	Email         string     `db:"email" json:"email"`
-	Phone         string     `db:"phone" json:"phone"`
 	Password      string     `db:"password" json:"password"`
 	EmailVerified bool       `db:"email_verified" json:"email_verified"`
 }

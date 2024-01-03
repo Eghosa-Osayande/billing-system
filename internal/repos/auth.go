@@ -34,7 +34,6 @@ func (repo *AuthRepo) CreateUser(user *database.CreateUserParams) (*database.Use
 	newuser, err := repo.db.CreateUser(ctx, database.CreateUserParams{
 		Fullname:      user.Fullname,
 		Email:         user.Email,
-		Phone:         user.Phone,
 		Password:      user.Password,
 		EmailVerified: user.EmailVerified,
 	})

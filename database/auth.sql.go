@@ -37,22 +37,19 @@ func (q *Queries) CreateOrUpdateUserEmailVerification(ctx context.Context, arg C
 const createUser = `-- name: CreateUser :one
 INSERT INTO
 	users (
-		
 		fullname,
 		email,
-		phone,
 		password,
 		email_verified
 	)
 VALUES
-	($1, $2, $3, $4, $5)
-RETURNING id, created_at, updated_at, deleted_at, fullname, email, phone, password, email_verified
+	($1, $2, $3, $4)
+RETURNING id, created_at, updated_at, deleted_at, fullname, email, password, email_verified
 `
 
 type CreateUserParams struct {
 	Fullname      string `db:"fullname" json:"fullname"`
 	Email         string `db:"email" json:"email"`
-	Phone         string `db:"phone" json:"phone"`
 	Password      string `db:"password" json:"password"`
 	EmailVerified bool   `db:"email_verified" json:"email_verified"`
 }
@@ -61,7 +58,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	row := q.db.QueryRow(ctx, createUser,
 		arg.Fullname,
 		arg.Email,
-		arg.Phone,
 		arg.Password,
 		arg.EmailVerified,
 	)
@@ -73,7 +69,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.DeletedAt,
 		&i.Fullname,
 		&i.Email,
-		&i.Phone,
 		&i.Password,
 		&i.EmailVerified,
 	)
@@ -94,7 +89,7 @@ func (q *Queries) DeleteUserEmailVerificationByEmail(ctx context.Context, email 
 
 const findUserByEmail = `-- name: FindUserByEmail :one
 SELECT
-	id, created_at, updated_at, deleted_at, fullname, email, phone, password, email_verified
+	id, created_at, updated_at, deleted_at, fullname, email, password, email_verified
 FROM
 	users
 WHERE
@@ -112,7 +107,6 @@ func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, erro
 		&i.DeletedAt,
 		&i.Fullname,
 		&i.Email,
-		&i.Phone,
 		&i.Password,
 		&i.EmailVerified,
 	)
@@ -147,7 +141,7 @@ SET
 	email_verified = $1
 WHERE
 	email = $2
-RETURNING id, created_at, updated_at, deleted_at, fullname, email, phone, password, email_verified
+RETURNING id, created_at, updated_at, deleted_at, fullname, email, password, email_verified
 `
 
 type UpdateUserEmailVerifiedByEmailParams struct {
@@ -165,7 +159,6 @@ func (q *Queries) UpdateUserEmailVerifiedByEmail(ctx context.Context, arg Update
 		&i.DeletedAt,
 		&i.Fullname,
 		&i.Email,
-		&i.Phone,
 		&i.Password,
 		&i.EmailVerified,
 	)

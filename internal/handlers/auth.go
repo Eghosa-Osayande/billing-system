@@ -36,7 +36,6 @@ func (handler *AuthHandler) RegisterHandlers(router fiber.Router) {
 type CreateUserInput struct {
 	Fullname string `json:"fullname" validate:"required"`
 	Email    string `json:"email" validate:"required,email"`
-	Phone    string `json:"phone" validate:"required,e164"`
 	Password string `json:"password" validate:"required,len=7"`
 }
 
@@ -80,7 +79,6 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 		newUser := database.CreateUserParams{
 			Fullname:      createuserInput.Fullname,
 			Email:         createuserInput.Email,
-			Phone:         createuserInput.Phone,
 			Password:      string(hashedPass),
 			EmailVerified: false,
 		}
