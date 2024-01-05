@@ -14,17 +14,12 @@ import (
 const createBusiness = `-- name: CreateBusiness :one
 INSERT INTO
 	business (
-		
 		business_name,
 		business_avatar,
 		owner_id
 	)
 VALUES
-	(
-		$1,
-		$2,
-		$3
-	) RETURNING id, created_at, updated_at, deleted_at, business_name, business_avatar, owner_id
+	($1, $2, $3) RETURNING id, created_at, updated_at, deleted_at, business_name, business_avatar, owner_id
 `
 
 type CreateBusinessParams struct {
@@ -82,8 +77,7 @@ SET
 	business_name = $2,
 	business_avatar = $3
 WHERE
-	owner_id = $1 
-RETURNING id, created_at, updated_at, deleted_at, business_name, business_avatar, owner_id
+	owner_id = $1 RETURNING id, created_at, updated_at, deleted_at, business_name, business_avatar, owner_id
 `
 
 type UpdateBusinessParams struct {

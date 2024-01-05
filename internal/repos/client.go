@@ -52,3 +52,18 @@ func (repo *ClientRepo) CreateClient(input *database.CreateClientParams) (*datab
 	return &client, nil
 
 }
+
+func (repo *ClientRepo) FindBusinessClientById(id, businessId uuid.UUID) (*database.Client, error) {
+	ctx := context.Background()
+
+	client, err := repo.db.FindBusinessClientByID(ctx, database.FindBusinessClientByIDParams{
+		ID:         id,
+		BusinessID: businessId,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &client, nil
+}

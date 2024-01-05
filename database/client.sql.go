@@ -69,6 +69,36 @@ func (q *Queries) DeleteClient(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const findBusinessClientByID = `-- name: FindBusinessClientByID :one
+SELECT
+	id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
+FROM
+	client
+WHERE
+	id=$1 AND business_id=$2
+`
+
+type FindBusinessClientByIDParams struct {
+	ID         uuid.UUID `db:"id" json:"id"`
+	BusinessID uuid.UUID `db:"business_id" json:"business_id"`
+}
+
+func (q *Queries) FindBusinessClientByID(ctx context.Context, arg FindBusinessClientByIDParams) (Client, error) {
+	row := q.db.QueryRow(ctx, findBusinessClientByID, arg.ID, arg.BusinessID)
+	var i Client
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.BusinessID,
+		&i.Fullname,
+		&i.Email,
+		&i.Phone,
+	)
+	return i, err
+}
+
 const getClientsByBusinessId = `-- name: GetClientsByBusinessId :many
 SELECT
     id, created_at, updated_at, deleted_at, business_id, fullname, email, phone

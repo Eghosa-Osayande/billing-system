@@ -41,3 +41,11 @@ WHERE
     business_id = sqlc.arg('business_id')
 ORDER BY
     created_at DESC;
+
+-- name: FindBusinessClientByID :one
+SELECT
+	*
+FROM
+	client
+WHERE
+	id=$1 AND business_id=$2;

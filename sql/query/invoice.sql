@@ -113,3 +113,4 @@ ORDER BY
     invoice.created_at DESC, invoice.id DESC
 LIMIT
     COALESCE(sqlc.narg('limit'), 1);
+

@@ -126,10 +126,11 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 		return valerr
 	}
 
-	businessId, err := util.GetUserBusinessIdFromContext(ctx)
+	businessIdPtr, err := util.GetUserBusinessIdFromContext(ctx)
 	if err != nil {
 		return err
 	}
+	businessId := *businessIdPtr
 
 	itemsParams := make([]database.CreateInvoiceItemParams, 0)
 
@@ -163,9 +164,17 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 			return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid date format")
 		}
 	}
+	if input.ClientID != nil {
+		cl,err:=handler.config.ClientRepo.FindBusinessClientById(*input.ClientID, businessId)
+		log.Println(cl,err)
+		if err != nil || cl == nil{
+			return fiber.NewError(fiber.ErrBadRequest.Code, "Client not found")
+		}
+	}
+
 	invoice, err := handler.config.InvoiceRepo.CreateInvoice(
 		&database.CreateInvoiceParams{
-			BusinessID:      *businessId,
+			BusinessID:      businessId,
 			Currency:        input.Currency,
 			PaymentDueDate:  paymentDueDate,
 			DateOfIssue:     issueDate,
@@ -180,7 +189,7 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 
 	if err != nil {
 		log.Println(err)
-		return fiber.NewError(fiber.ErrInternalServerError.Code,err.Error())
+		return fiber.NewError(fiber.ErrInternalServerError.Code, err.Error())
 	}
 
 	return ctx.JSON(util.NewSuccessResponseWithData[any]("Success", invoice))
