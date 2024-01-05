@@ -3,6 +3,7 @@ package repos
 import (
 	"blanq_invoice/database"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -36,9 +37,9 @@ func (repo *InvoiceRepo) FindAllInvoicesByBusinessID(businessID uuid.UUID) ([]da
 		if err != nil {
 			return nil, err
 		}
-		invoiceWithItems[index]= database.InvoiceWithItems{
+		invoiceWithItems[index] = database.InvoiceWithItems{
 			Invoice: invoice,
-			Items: invoiceitems,
+			Items:   invoiceitems,
 		}
 	}
 	return invoiceWithItems, nil
@@ -86,5 +87,36 @@ func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, item
 		Invoice: newinvoice,
 		Items:   newItems,
 	}, nil
+
+}
+
+func (repo *InvoiceRepo) FindInvoicesWhere(input *database.FindInvoicesWhereParams) ([]database.InvoiceWithItemsT[any], error) {
+	ctx := context.Background()
+
+	result, err := repo.db.FindInvoicesWhere(ctx, *input)
+	if err != nil {
+		return nil, err
+	}
+
+	invoiceList := make([]database.InvoiceWithItemsT[any], len(result))
+	fmt.Print("pp")
+	for index := range result {
+		row := result[index]
+		items := new(any)
+
+		fmt.Print("rr")
+		err := json.Unmarshal(row.Items, &items)
+		if err != nil {
+			fmt.Print("err") // return nil, err
+
+		}
+
+		invoiceList[index] = database.InvoiceWithItemsT[any]{
+			Invoice: row.Invoice,
+			Items:   items,
+		}
+	}
+
+	return invoiceList, nil
 
 }

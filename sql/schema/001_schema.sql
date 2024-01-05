@@ -1,6 +1,7 @@
 -- +goose Up
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+
 Create table if not exists users (
 	id uuid primary key DEFAULT uuid_generate_v4() NOT NULL,
 	created_at timestamp DEFAULT timezone('utc', now()) NOT NULL,
@@ -8,7 +9,6 @@ Create table if not exists users (
 	deleted_at timestamp,
 	fullname varchar(255) NOT NULL,
 	email varchar(255) NOT NULL UNIQUE,
-	phone varchar(255) NOT NULL,
 	password varchar(255) NOT NULL,
 	email_verified boolean NOT NULL
 );
@@ -72,7 +72,10 @@ Create table if not exists invoice (
 				AND shipping_fee IS NOT NULL
 			)
 		)
+
 );
+
+Create INDEX idx_invoice_pagination ON invoice (created_at, id);
 
 CREATE TABLE IF NOT EXISTS invoiceitem (
 	id uuid primary key DEFAULT uuid_generate_v4(),

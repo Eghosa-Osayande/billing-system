@@ -26,32 +26,84 @@ func (handler *InvoiceHandler) RegisterHandlers(router fiber.Router) {
 
 }
 
+type FetchInvoiceFilter struct {
+	InvoiceID *uuid.UUID `json:"invoice_id" validate:"omitnil"`
+	ClientID  *uuid.UUID `json:"client_id" validate:"omitnil"`
+	Limit     *int       `json:"limit"`
+	Cursor    *string    `json:"cursor"`
+}
+
 func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
+	input, valerr := util.ValidateRequestBody[*FetchInvoiceFilter](ctx.Body(), &FetchInvoiceFilter{})
+
+	if valerr != nil {
+		return valerr
+	}
+
 	if userId, ok := ctx.Context().UserValue("user_id").(string); !ok {
 		return fiber.NewError(fiber.ErrUnauthorized.Code, "Unauthorized")
 	} else {
-
 		userId, err := uuid.Parse(userId)
 		if err != nil {
 			log.Println(err)
 			return fiber.NewError(fiber.ErrInternalServerError.Code)
 		}
+
 		business, err := handler.config.BusinessRepo.FindBusinessByUserID(userId)
 		if err != nil {
 			log.Println(err)
 			return fiber.NewError(fiber.ErrInternalServerError.Code)
 		}
 		if business == nil {
-			return ctx.JSON(util.NewSuccessResponseWithData[*util.PagedResult[database.Invoice]]("Create a business first", nil))
+			return ctx.JSON(util.NewSuccessResponseWithData[any]("Create a business first", nil))
 		}
 
-		invoices, err := handler.config.InvoiceRepo.FindAllInvoicesByBusinessID(business.ID)
+		var cursor_time *time.Time
+		var cursor_id *uuid.UUID
+
+		if input.Cursor != nil {
+			created_at, id, errCsr := util.DecodeCursor(*input.Cursor)
+
+			if errCsr != nil {
+				return fiber.NewError(fiber.ErrBadRequest.Code, "invalid-cursor")
+			}
+
+			parsedId, err := uuid.Parse(id)
+			if err != nil {
+				return fiber.NewError(fiber.ErrBadRequest.Code, "invalid-cursor")
+			}
+
+			cursor_time, cursor_id = &created_at, &parsedId
+
+		}
+
+		params := database.FindInvoicesWhereParams{
+			BusinessID: &business.ID,
+			ClientID:   input.ClientID,
+			InvoiceID:  input.InvoiceID,
+			CursorTime: cursor_time,
+			CursorID:   cursor_id,
+			Limit:      input.Limit,
+		}
+		invoices, err := handler.config.InvoiceRepo.FindInvoicesWhere(&params)
+
 		if err != nil {
 			log.Println(err)
 			return fiber.NewError(fiber.ErrInternalServerError.Code)
 		}
 
-		return ctx.JSON(util.NewSuccessResponseWithData[any]("Success", invoices))
+		return ctx.JSON(
+			util.NewSuccessResponseWithData[any](
+				"Success",
+				util.ListToPagedResult(
+					invoices,
+					func(
+						item database.InvoiceWithItemsT[any],
+					) (t time.Time, uuid string) {
+						return item.CreatedAt, item.ID.String()
+					}),
+			),
+		)
 	}
 }
 
@@ -101,7 +153,7 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 		}
 
 		if business == nil {
-			return ctx.JSON(util.NewSuccessResponseWithData[*util.PagedResult[database.Invoice]]("Create a business first", nil))
+			return ctx.JSON(util.NewSuccessResponseWithData[any]("Create a business first", nil))
 		}
 
 		itemsParams := make([]database.CreateInvoiceItemParams, 0)

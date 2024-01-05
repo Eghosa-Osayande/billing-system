@@ -12,10 +12,13 @@ func (q Queries) GetSqlDB() *pgx.Conn {
 	return q.db.(*pgx.Conn)
 }
 
-type InvoiceWithItems struct {
+type InvoiceWithItemsT[T any] struct  {
 	Invoice 
-	Items []Invoiceitem `json:"items"`
+	Items T `json:"items"`
 }
+
+type InvoiceWithItems InvoiceWithItemsT[[]Invoiceitem]
+
 
 // type InvoiceItem struct {
 // 	Name     string   `json:"name" validate:"required" db:"name"`

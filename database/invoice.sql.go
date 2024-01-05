@@ -101,7 +101,14 @@ func (q *Queries) DeleteInvoiceById(ctx context.Context, id uuid.UUID) error {
 }
 
 const findAllBusinessInvoices = `-- name: FindAllBusinessInvoices :many
-SELECT id, created_at, updated_at, deleted_at, business_id, currency, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee FROM invoice WHERE business_id = $1 ORDER BY created_at DESC
+SELECT
+    id, created_at, updated_at, deleted_at, business_id, currency, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee
+FROM
+    invoice
+WHERE
+    business_id = $1
+ORDER BY
+    created_at DESC
 `
 
 func (q *Queries) FindAllBusinessInvoices(ctx context.Context, businessID uuid.UUID) ([]Invoice, error) {
@@ -145,7 +152,7 @@ SELECT
     invoiceitem.id, invoiceitem.created_at, invoiceitem.invoice_id, invoiceitem.title, invoiceitem.price, invoiceitem.quantity, invoiceitem.discount, invoiceitem.discount_type
 FROM
     invoice
-JOIN invoiceitem ON invoiceitem.invoice_id = invoice.id
+    JOIN invoiceitem ON invoiceitem.invoice_id = invoice.id
 WHERE
     (invoice.id = $1)
 `
@@ -185,6 +192,109 @@ func (q *Queries) FindInvoiceById(ctx context.Context, id uuid.UUID) (FindInvoic
 	return i, err
 }
 
+const findInvoicesWhere = `-- name: FindInvoicesWhere :many
+SELECT
+    invoice.id, invoice.created_at, invoice.updated_at, invoice.deleted_at, invoice.business_id, invoice.currency, invoice.payment_due_date, invoice.date_of_issue, invoice.notes, invoice.payment_method, invoice.payment_status, invoice.client_id, invoice.shipping_fee_type, invoice.shipping_fee,
+    JSON_AGG(
+        jsonb_build_object(
+            'id',
+            invoiceitem.id,
+            'created_at',
+            invoiceitem.created_at,
+            'invoice_id',
+            invoiceitem.invoice_id,
+            'title',
+            invoiceitem.title,
+            'price',
+            invoiceitem.price,
+            'quantity',
+            invoiceitem.quantity,
+            'discount',
+            invoiceitem.discount,
+            'discount_type',
+            invoiceitem.discount_type
+        )
+    ) as items
+FROM
+    invoice
+    JOIN invoiceitem ON invoiceitem.invoice_id = invoice.id
+WHERE
+    invoice.business_id = COALESCE($1, invoice.business_id)
+    AND invoice.client_id = COALESCE($2, invoice.client_id)
+    AND invoice.id = COALESCE($3, invoice.id)
+    AND (
+        $4::timestamp IS NULL
+        OR invoice.created_at <= $4
+    )
+    AND (
+        $5::uuid IS NULL
+        OR invoice.id < $5
+    )
+GROUP BY
+    invoice.id
+ORDER BY
+    invoice.created_at DESC, invoice.id DESC
+LIMIT
+    COALESCE($6, 1)
+`
+
+type FindInvoicesWhereParams struct {
+	BusinessID *uuid.UUID  `db:"business_id" json:"business_id"`
+	ClientID   *uuid.UUID  `db:"client_id" json:"client_id"`
+	InvoiceID  *uuid.UUID  `db:"invoice_id" json:"invoice_id"`
+	CursorTime *time.Time  `db:"cursor_time" json:"cursor_time"`
+	CursorID   *uuid.UUID  `db:"cursor_id" json:"cursor_id"`
+	Limit      interface{} `db:"limit" json:"limit"`
+}
+
+type FindInvoicesWhereRow struct {
+	Invoice Invoice `db:"invoice" json:"invoice"`
+	Items   []byte  `db:"items" json:"items"`
+}
+
+func (q *Queries) FindInvoicesWhere(ctx context.Context, arg FindInvoicesWhereParams) ([]FindInvoicesWhereRow, error) {
+	rows, err := q.db.Query(ctx, findInvoicesWhere,
+		arg.BusinessID,
+		arg.ClientID,
+		arg.InvoiceID,
+		arg.CursorTime,
+		arg.CursorID,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FindInvoicesWhereRow
+	for rows.Next() {
+		var i FindInvoicesWhereRow
+		if err := rows.Scan(
+			&i.Invoice.ID,
+			&i.Invoice.CreatedAt,
+			&i.Invoice.UpdatedAt,
+			&i.Invoice.DeletedAt,
+			&i.Invoice.BusinessID,
+			&i.Invoice.Currency,
+			&i.Invoice.PaymentDueDate,
+			&i.Invoice.DateOfIssue,
+			&i.Invoice.Notes,
+			&i.Invoice.PaymentMethod,
+			&i.Invoice.PaymentStatus,
+			&i.Invoice.ClientID,
+			&i.Invoice.ShippingFeeType,
+			&i.Invoice.ShippingFee,
+			&i.Items,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateInvoice = `-- name: UpdateInvoice :one
 Update
     invoice
@@ -199,7 +309,6 @@ SET
     client_id = COALESCE($8, client_id),
     shipping_fee_type = COALESCE($9, shipping_fee_type),
     shipping_fee = COALESCE($10, shipping_fee)
-    
 WHERE
     id = $1 RETURNING id, created_at, updated_at, deleted_at, business_id, currency, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee
 `

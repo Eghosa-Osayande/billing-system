@@ -43,7 +43,7 @@ func (handler *ClientHandler) HandleAll(ctx *fiber.Ctx) error {
 			return fiber.NewError(fiber.ErrInternalServerError.Code)
 		}
 		if business == nil {
-			return ctx.JSON(util.NewSuccessResponseWithData[*util.PagedResult[database.Client]]("Create a business first", nil))
+			return ctx.JSON(util.NewSuccessResponseWithData[any]("Create a business first", nil))
 		}
 		
 		clients, err := handler.config.ClientRepo.GetClients(business.ID,)
@@ -53,7 +53,7 @@ func (handler *ClientHandler) HandleAll(ctx *fiber.Ctx) error {
 		}
 
 		if clients == nil {
-			return ctx.JSON(util.NewSuccessResponseWithData[*util.PagedResult[database.Client]]("No clients found", nil))
+			return ctx.JSON(util.NewSuccessResponseWithData[any]("No clients found", nil))
 		}
 
 		return ctx.JSON(util.NewSuccessResponseWithData[[]database.Client]("Clients found", clients))
