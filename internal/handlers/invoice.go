@@ -3,6 +3,7 @@ package handlers
 import (
 	"blanq_invoice/database"
 	"blanq_invoice/internal/repos"
+	"blanq_invoice/middlewares"
 	"blanq_invoice/util"
 	"log"
 	"time"
@@ -21,6 +22,8 @@ func NewInvoiceHandler(config *repos.ApiRepos) *InvoiceHandler {
 }
 
 func (handler *InvoiceHandler) RegisterHandlers(router fiber.Router) {
+	router = router.Group("/invoices").Use(middlewares.AuthenticatedUserMiddleware).Use(middlewares.UserMustHaveBusinessMiddlewareInstance().Use)
+	
 	router.Get("/all", handler.HandleAll)
 	router.Post("/new", handler.HandleCreateInvoice)
 
@@ -40,71 +43,58 @@ func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
 		return valerr
 	}
 
-	if userId, ok := ctx.Context().UserValue("user_id").(string); !ok {
-		return fiber.NewError(fiber.ErrUnauthorized.Code, "Unauthorized")
-	} else {
-		userId, err := uuid.Parse(userId)
-		if err != nil {
-			log.Println(err)
-			return fiber.NewError(fiber.ErrInternalServerError.Code)
-		}
-
-		business, err := handler.config.BusinessRepo.FindBusinessByUserID(userId)
-		if err != nil {
-			log.Println(err)
-			return fiber.NewError(fiber.ErrInternalServerError.Code)
-		}
-		if business == nil {
-			return ctx.JSON(util.NewSuccessResponseWithData[any]("Create a business first", nil))
-		}
-
-		var cursor_time *time.Time
-		var cursor_id *uuid.UUID
-
-		if input.Cursor != nil {
-			created_at, id, errCsr := util.DecodeCursor(*input.Cursor)
-
-			if errCsr != nil {
-				return fiber.NewError(fiber.ErrBadRequest.Code, "invalid-cursor")
-			}
-
-			parsedId, err := uuid.Parse(id)
-			if err != nil {
-				return fiber.NewError(fiber.ErrBadRequest.Code, "invalid-cursor")
-			}
-
-			cursor_time, cursor_id = &created_at, &parsedId
-
-		}
-
-		params := database.FindInvoicesWhereParams{
-			BusinessID: &business.ID,
-			ClientID:   input.ClientID,
-			InvoiceID:  input.InvoiceID,
-			CursorTime: cursor_time,
-			CursorID:   cursor_id,
-			Limit:      input.Limit,
-		}
-		invoices, err := handler.config.InvoiceRepo.FindInvoicesWhere(&params)
-
-		if err != nil {
-			log.Println(err)
-			return fiber.NewError(fiber.ErrInternalServerError.Code)
-		}
-
-		return ctx.JSON(
-			util.NewSuccessResponseWithData[any](
-				"Success",
-				util.ListToPagedResult(
-					invoices,
-					func(
-						item database.InvoiceWithItemsT[any],
-					) (t time.Time, uuid string) {
-						return item.CreatedAt, item.ID.String()
-					}),
-			),
-		)
+	businessId, err := util.GetUserBusinessIdFromContext(ctx)
+	if err != nil {
+		return err
 	}
+
+	var cursor_time *time.Time
+	var cursor_id *uuid.UUID
+
+	if input.Cursor != nil {
+		created_at, id, errCsr := util.DecodeCursor(*input.Cursor)
+
+		if errCsr != nil {
+			return fiber.NewError(fiber.ErrBadRequest.Code, "invalid-cursor")
+		}
+
+		parsedId, err := uuid.Parse(id)
+		if err != nil {
+			return fiber.NewError(fiber.ErrBadRequest.Code, "invalid-cursor")
+		}
+
+		cursor_time, cursor_id = &created_at, &parsedId
+
+	}
+
+	params := database.FindInvoicesWhereParams{
+		BusinessID: businessId,
+		ClientID:   input.ClientID,
+		InvoiceID:  input.InvoiceID,
+		CursorTime: cursor_time,
+		CursorID:   cursor_id,
+		Limit:      input.Limit,
+	}
+	invoices, err := handler.config.InvoiceRepo.FindInvoicesWhere(&params)
+
+	if err != nil {
+		log.Println(err)
+		return fiber.NewError(fiber.ErrInternalServerError.Code)
+	}
+
+	return ctx.JSON(
+		util.NewSuccessResponseWithData[any](
+			"Success",
+			util.ListToPagedResult(
+				invoices,
+				func(
+					item database.InvoiceWithItemsT[any],
+				) (t time.Time, uuid string) {
+					return item.CreatedAt, item.ID.String()
+				}),
+		),
+	)
+
 }
 
 type InvoiceItemInput struct {
@@ -136,78 +126,62 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 		return valerr
 	}
 
-	if userId, ok := ctx.Context().UserValue("user_id").(string); !ok {
-		return fiber.NewError(fiber.ErrUnauthorized.Code, "Unauthorized")
-	} else {
-
-		userId, err := uuid.Parse(userId)
-		if err != nil {
-			log.Println(err)
-			return fiber.NewError(fiber.ErrInternalServerError.Code)
-		}
-
-		business, err := handler.config.BusinessRepo.FindBusinessByUserID(userId)
-		if err != nil {
-			log.Println(err)
-			return fiber.NewError(fiber.ErrInternalServerError.Code)
-		}
-
-		if business == nil {
-			return ctx.JSON(util.NewSuccessResponseWithData[any]("Create a business first", nil))
-		}
-
-		itemsParams := make([]database.CreateInvoiceItemParams, 0)
-
-		if input.Items != nil {
-			itemsParams = make([]database.CreateInvoiceItemParams, len(*input.Items))
-			for index := range *input.Items {
-				item := (*input.Items)[index]
-
-				itemsParams[index] = database.CreateInvoiceItemParams{
-					Title:        item.Name,
-					Price:        item.Price,
-					Quantity:     decimal.NewFromInt(int64(item.Quantity)),
-					Discount:     item.Discount,
-					DiscountType: item.DiscountType,
-				}
-			}
-		}
-		var paymentDueDate *time.Time
-		if input.PaymentDueDate != nil {
-			paymentDueDate = new(time.Time)
-			*paymentDueDate, err = time.Parse("2006-01-02", *input.PaymentDueDate)
-			if err != nil {
-				return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid date format")
-			}
-		}
-		var issueDate *time.Time
-		if input.DateOfIssue != nil {
-			issueDate = new(time.Time)
-			*issueDate, err = time.Parse("2006-01-02", *input.DateOfIssue)
-			if err != nil {
-				return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid date format")
-			}
-		}
-		invoice, err := handler.config.InvoiceRepo.CreateInvoice(
-			&database.CreateInvoiceParams{
-				BusinessID:      business.ID,
-				Currency:        input.Currency,
-				PaymentDueDate:  paymentDueDate,
-				DateOfIssue:     issueDate,
-				Notes:           input.Notes,
-				PaymentMethod:   input.PaymentMethod,
-				PaymentStatus:   input.PaymentStatus,
-				ClientID:        input.ClientID,
-				ShippingFeeType: input.ShippingFeeType,
-				ShippingFee:     input.ShippingFee,
-			},
-			itemsParams)
-
-		if err != nil {
-			log.Println(err)
-			return fiber.NewError(fiber.ErrInternalServerError.Code)
-		}
-
-		return ctx.JSON(util.NewSuccessResponseWithData[any]("Success", invoice))
+	businessId, err := util.GetUserBusinessIdFromContext(ctx)
+	if err != nil {
+		return err
 	}
+
+	itemsParams := make([]database.CreateInvoiceItemParams, 0)
+
+	if input.Items != nil {
+		itemsParams = make([]database.CreateInvoiceItemParams, len(*input.Items))
+		for index := range *input.Items {
+			item := (*input.Items)[index]
+
+			itemsParams[index] = database.CreateInvoiceItemParams{
+				Title:        item.Name,
+				Price:        item.Price,
+				Quantity:     decimal.NewFromInt(int64(item.Quantity)),
+				Discount:     item.Discount,
+				DiscountType: item.DiscountType,
+			}
+		}
+	}
+	var paymentDueDate *time.Time
+	if input.PaymentDueDate != nil {
+		paymentDueDate = new(time.Time)
+		*paymentDueDate, err = time.Parse("2006-01-02", *input.PaymentDueDate)
+		if err != nil {
+			return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid date format")
+		}
+	}
+	var issueDate *time.Time
+	if input.DateOfIssue != nil {
+		issueDate = new(time.Time)
+		*issueDate, err = time.Parse("2006-01-02", *input.DateOfIssue)
+		if err != nil {
+			return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid date format")
+		}
+	}
+	invoice, err := handler.config.InvoiceRepo.CreateInvoice(
+		&database.CreateInvoiceParams{
+			BusinessID:      *businessId,
+			Currency:        input.Currency,
+			PaymentDueDate:  paymentDueDate,
+			DateOfIssue:     issueDate,
+			Notes:           input.Notes,
+			PaymentMethod:   input.PaymentMethod,
+			PaymentStatus:   input.PaymentStatus,
+			ClientID:        input.ClientID,
+			ShippingFeeType: input.ShippingFeeType,
+			ShippingFee:     input.ShippingFee,
+		},
+		itemsParams)
+
+	if err != nil {
+		log.Println(err)
+		return fiber.NewError(fiber.ErrInternalServerError.Code)
+	}
+
+	return ctx.JSON(util.NewSuccessResponseWithData[any]("Success", invoice))
 }

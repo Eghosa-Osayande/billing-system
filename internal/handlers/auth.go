@@ -4,7 +4,6 @@ import (
 	"blanq_invoice/database"
 	"blanq_invoice/internal/repos"
 	"blanq_invoice/util"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
@@ -27,6 +26,7 @@ func NewAuthHandler(config *repos.ApiRepos) *AuthHandler {
 }
 
 func (handler *AuthHandler) RegisterHandlers(router fiber.Router) {
+	router = router.Group("/auth")
 	router.Post("/signup", handler.HandleSignup)
 	router.Post("/login", handler.HandleLogin)
 	router.Post("/verifyEmail", handler.HandleVerifyEmail)
@@ -51,17 +51,14 @@ type CreateUserInput struct {
 // @Failure 500 {object}  util.ErrorResponse
 // @Router /auth/signup [post]
 func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
-	body := ctx.Body()
-	createuserInput := &CreateUserInput{}
 
-	if err := json.Unmarshal(body, createuserInput); err != nil {
-		return util.ErrorInvalidJsonInput
-	}
-	if valErr := util.ValidateStruct(createuserInput); valErr != nil {
+	input, valErr := util.ValidateRequestBody(ctx.Body(), &CreateUserInput{})
+
+	if valErr != nil {
 		return valErr
 	}
 
-	existingUser, err := handler.config.AuthRepo.GetUserByEmail(createuserInput.Email)
+	existingUser, err := handler.config.AuthRepo.GetUserByEmail(input.Email)
 
 	if err != nil {
 		log.Println(err)
@@ -71,25 +68,25 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 	if existingUser != nil {
 		return fiber.NewError(400, "Email already exists")
 	} else {
-		hashedPass, hashErr := bcrypt.GenerateFromPassword([]byte(createuserInput.Password), bcrypt.DefaultCost)
+		hashedPass, hashErr := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 
 		if hashErr != nil {
 			return hashErr
 		}
 		newUser := database.CreateUserParams{
-			Fullname:      createuserInput.Fullname,
-			Email:         createuserInput.Email,
+			Fullname:      input.Fullname,
+			Email:         input.Email,
 			Password:      string(hashedPass),
 			EmailVerified: false,
 		}
-		
+
 		createdUser, err := handler.config.AuthRepo.CreateUser(&newUser)
 		if err != nil {
 			return fiber.NewError(500, "User creation failed")
 		}
 
 		verificationData := &database.CreateOrUpdateUserEmailVerificationParams{
-			Email:     createuserInput.Email,
+			Email:     input.Email,
 			Code:      generateOTP(),
 			ExpiresAt: generateOtpExpiration()}
 
@@ -121,13 +118,10 @@ type ResendEmailOtpInput struct {
 // @Failure 500 {object}  util.ErrorResponse
 // @Router /auth/resendEmailOtp [post]
 func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
-	body := ctx.Body()
-	input := &ResendEmailOtpInput{}
 
-	if err := json.Unmarshal(body, input); err != nil {
-		return util.ErrorInvalidJsonInput
-	}
-	if valErr := util.ValidateStruct(input); valErr != nil {
+	input, valErr := util.ValidateRequestBody(ctx.Body(), &ResendEmailOtpInput{})
+
+	if valErr != nil {
 		return valErr
 	}
 
@@ -163,13 +157,10 @@ type VerifyEmailOtpInput struct {
 }
 
 func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
-	body := ctx.Body()
-	input := &VerifyEmailOtpInput{}
 
-	if err := json.Unmarshal(body, input); err != nil {
-		return util.ErrorInvalidJsonInput
-	}
-	if valErr := util.ValidateStruct(input); valErr != nil {
+	input, valErr := util.ValidateRequestBody(ctx.Body(), &VerifyEmailOtpInput{})
+
+	if valErr != nil {
 		return valErr
 	}
 
@@ -222,15 +213,13 @@ type LoginUserResponse struct {
 }
 
 func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
-	body := ctx.Body()
-	input := &LoginUserInput{}
 
-	if err := json.Unmarshal(body, input); err != nil {
-		return util.ErrorInvalidJsonInput
-	}
-	if valErr := util.ValidateStruct(input); valErr != nil {
+	input, valErr := util.ValidateRequestBody(ctx.Body(), &LoginUserInput{})
+
+	if valErr != nil {
 		return valErr
 	}
+
 	repo := handler.config.AuthRepo
 
 	user, err := repo.GetUserByEmail(input.Email)

@@ -4,7 +4,8 @@ type ApiRepos struct {
 	ClientRepo   *ClientRepo
 	BusinessRepo *BusinessRepo
 	AuthRepo     *AuthRepo
-	InvoiceRepo *InvoiceRepo
+	InvoiceRepo  *InvoiceRepo
+	*UserRepo
 }
 
 func NewApiRepos(params ApiReposParams) *ApiRepos {
@@ -13,6 +14,7 @@ func NewApiRepos(params ApiReposParams) *ApiRepos {
 		ClientRepo:   params.ClientRepo,
 		BusinessRepo: params.BusinessRepo,
 		AuthRepo:     params.AuthRepo,
+		UserRepo:     params.UserRepo,
 	}
 }
 
@@ -20,5 +22,6 @@ type ApiReposParams struct {
 	ClientRepo   *ClientRepo
 	BusinessRepo *BusinessRepo
 	AuthRepo     *AuthRepo
-	InvoiceRepo *InvoiceRepo
+	InvoiceRepo  *InvoiceRepo
+	*UserRepo
 }

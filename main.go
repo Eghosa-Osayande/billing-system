@@ -10,7 +10,6 @@ import (
 	"blanq_invoice/internal/handlers"
 	"blanq_invoice/internal/repos"
 	"blanq_invoice/middlewares"
-	"blanq_invoice/util"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
@@ -53,9 +52,6 @@ func main() {
 		panic(err)
 	}
 
-	
-	
-
 	app := fiber.New()
 	db := database.New(conn)
 	config := repos.NewApiRepos(repos.ApiReposParams{
@@ -63,9 +59,12 @@ func main() {
 		BusinessRepo: repos.NewBusinessRepo(db),
 		AuthRepo:     repos.NewAuthRepo(db),
 		InvoiceRepo:  repos.NewInvoiceRepo(db),
+		UserRepo:     repos.NewUserRepo(db),
 	})
 
-	app.Use(util.ErrorMessageMiddleware)
+	middlewares.NewUserMustHaveBusinessMiddleware(config)
+
+	app.Use(middlewares.ErrorMessageMiddleware)
 
 	app.Get(docsAdress, swagger.New(swagger.Config{
 		TryItOutEnabled: false,
@@ -73,23 +72,13 @@ func main() {
 		DocExpansion:    "none",
 	}))
 
-	authHandler := handlers.NewAuthHandler(config)
-	authHandler.RegisterHandlers(app.Group("/auth"))
+	handlers.NewAuthHandler(config).RegisterHandlers(app)
 
-	businessHandler := handlers.NewBusinessHandler(config)
-	businessRoute := app.Group("/business")
-	businessRoute.Use(middlewares.AuthenticatedUserMiddleware)
-	businessHandler.RegisterHandlers(businessRoute)
+	handlers.NewBusinessHandler(config).RegisterHandlers(app)
 
-	clientHandler := handlers.NewClientHandler(config)
-	clientRoute := app.Group("/clients")
-	clientRoute.Use(middlewares.AuthenticatedUserMiddleware)
-	clientHandler.RegisterHandlers(clientRoute)
+	handlers.NewClientHandler(config).RegisterHandlers(app)
 
-	invoiceHandler := handlers.NewInvoiceHandler(config)
-	invoiceRoute := app.Group("/invoices")
-	invoiceRoute.Use(middlewares.AuthenticatedUserMiddleware)
-	invoiceHandler.RegisterHandlers(invoiceRoute)
+	handlers.NewInvoiceHandler(config).RegisterHandlers(app)
 
 	if err := app.Listen(":" + port); err != nil {
 		log.Fatal("Server failed to start")

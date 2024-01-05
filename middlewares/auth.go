@@ -8,6 +8,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 func AuthenticatedUserMiddleware(c *fiber.Ctx) error {
@@ -40,8 +41,11 @@ func AuthenticatedUserMiddleware(c *fiber.Ctx) error {
 				log.Println("token expires at", r)
 
 				if mapClaims, ok := claims.(jwt.MapClaims); ok {
-					
-					c.Context().SetUserValue("user_id", mapClaims["user_id"].(string))
+					userId,err:=uuid.Parse(mapClaims["user_id"].(string))
+					if err != nil {
+						return err
+					}
+					c.Context().SetUserValue("user_id", userId)
 					return c.Next()
 				}
 				return errors.New("invalid Bearer Token Claims")
