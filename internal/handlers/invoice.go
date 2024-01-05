@@ -23,7 +23,7 @@ func NewInvoiceHandler(config *repos.ApiRepos) *InvoiceHandler {
 
 func (handler *InvoiceHandler) RegisterHandlers(router fiber.Router) {
 	router = router.Group("/invoices").Use(middlewares.AuthenticatedUserMiddleware).Use(middlewares.UserMustHaveBusinessMiddlewareInstance().Use)
-	
+
 	router.Get("/all", handler.HandleAll)
 	router.Post("/new", handler.HandleCreateInvoice)
 
@@ -180,7 +180,7 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 
 	if err != nil {
 		log.Println(err)
-		return fiber.NewError(fiber.ErrInternalServerError.Code)
+		return fiber.NewError(fiber.ErrInternalServerError.Code,err.Error())
 	}
 
 	return ctx.JSON(util.NewSuccessResponseWithData[any]("Success", invoice))
