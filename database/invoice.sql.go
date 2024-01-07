@@ -18,14 +18,16 @@ INSERT INTO
     invoice (
         business_id,
         currency,
+        currency_symbol,
         payment_due_date,
         date_of_issue,
         notes,
         payment_method,
-        payment_status,
         client_id,
         shipping_fee_type,
-        shipping_fee
+        shipping_fee,
+        total,
+        tax 
     )
 VALUES
     (
@@ -38,35 +40,42 @@ VALUES
         $7,
         $8,
         $9,
-        $10
-    ) RETURNING id, created_at, updated_at, deleted_at, business_id, currency, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee
+        $10,
+        $11,
+        $12
+       
+    ) RETURNING id, created_at, updated_at, deleted_at, business_id, currency, currency_symbol, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee, tax, invoice_number, total
 `
 
 type CreateInvoiceParams struct {
 	BusinessID      uuid.UUID        `db:"business_id" json:"business_id"`
 	Currency        *string          `db:"currency" json:"currency"`
+	CurrencySymbol  *string          `db:"currency_symbol" json:"currency_symbol"`
 	PaymentDueDate  *time.Time       `db:"payment_due_date" json:"payment_due_date"`
 	DateOfIssue     *time.Time       `db:"date_of_issue" json:"date_of_issue"`
 	Notes           *string          `db:"notes" json:"notes"`
 	PaymentMethod   *string          `db:"payment_method" json:"payment_method"`
-	PaymentStatus   *string          `db:"payment_status" json:"payment_status"`
 	ClientID        *uuid.UUID       `db:"client_id" json:"client_id"`
 	ShippingFeeType *string          `db:"shipping_fee_type" json:"shipping_fee_type"`
 	ShippingFee     *decimal.Decimal `db:"shipping_fee" json:"shipping_fee"`
+	Total           *decimal.Decimal `db:"total" json:"total"`
+	Tax             *decimal.Decimal `db:"tax" json:"tax"`
 }
 
 func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error) {
 	row := q.db.QueryRow(ctx, createInvoice,
 		arg.BusinessID,
 		arg.Currency,
+		arg.CurrencySymbol,
 		arg.PaymentDueDate,
 		arg.DateOfIssue,
 		arg.Notes,
 		arg.PaymentMethod,
-		arg.PaymentStatus,
 		arg.ClientID,
 		arg.ShippingFeeType,
 		arg.ShippingFee,
+		arg.Total,
+		arg.Tax,
 	)
 	var i Invoice
 	err := row.Scan(
@@ -76,6 +85,7 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		&i.DeletedAt,
 		&i.BusinessID,
 		&i.Currency,
+		&i.CurrencySymbol,
 		&i.PaymentDueDate,
 		&i.DateOfIssue,
 		&i.Notes,
@@ -84,6 +94,9 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		&i.ClientID,
 		&i.ShippingFeeType,
 		&i.ShippingFee,
+		&i.Tax,
+		&i.InvoiceNumber,
+		&i.Total,
 	)
 	return i, err
 }
@@ -102,7 +115,7 @@ func (q *Queries) DeleteInvoiceById(ctx context.Context, id uuid.UUID) error {
 
 const findAllBusinessInvoices = `-- name: FindAllBusinessInvoices :many
 SELECT
-    id, created_at, updated_at, deleted_at, business_id, currency, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee
+    id, created_at, updated_at, deleted_at, business_id, currency, currency_symbol, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee, tax, invoice_number, total
 FROM
     invoice
 WHERE
@@ -127,6 +140,7 @@ func (q *Queries) FindAllBusinessInvoices(ctx context.Context, businessID uuid.U
 			&i.DeletedAt,
 			&i.BusinessID,
 			&i.Currency,
+			&i.CurrencySymbol,
 			&i.PaymentDueDate,
 			&i.DateOfIssue,
 			&i.Notes,
@@ -135,6 +149,9 @@ func (q *Queries) FindAllBusinessInvoices(ctx context.Context, businessID uuid.U
 			&i.ClientID,
 			&i.ShippingFeeType,
 			&i.ShippingFee,
+			&i.Tax,
+			&i.InvoiceNumber,
+			&i.Total,
 		); err != nil {
 			return nil, err
 		}
@@ -148,7 +165,7 @@ func (q *Queries) FindAllBusinessInvoices(ctx context.Context, businessID uuid.U
 
 const findInvoiceById = `-- name: FindInvoiceById :one
 SELECT
-    invoice.id, invoice.created_at, invoice.updated_at, invoice.deleted_at, invoice.business_id, invoice.currency, invoice.payment_due_date, invoice.date_of_issue, invoice.notes, invoice.payment_method, invoice.payment_status, invoice.client_id, invoice.shipping_fee_type, invoice.shipping_fee,
+    invoice.id, invoice.created_at, invoice.updated_at, invoice.deleted_at, invoice.business_id, invoice.currency, invoice.currency_symbol, invoice.payment_due_date, invoice.date_of_issue, invoice.notes, invoice.payment_method, invoice.payment_status, invoice.client_id, invoice.shipping_fee_type, invoice.shipping_fee, invoice.tax, invoice.invoice_number, invoice.total,
     invoiceitem.id, invoiceitem.created_at, invoiceitem.invoice_id, invoiceitem.title, invoiceitem.price, invoiceitem.quantity, invoiceitem.discount, invoiceitem.discount_type
 FROM
     invoice
@@ -172,6 +189,7 @@ func (q *Queries) FindInvoiceById(ctx context.Context, id uuid.UUID) (FindInvoic
 		&i.Invoice.DeletedAt,
 		&i.Invoice.BusinessID,
 		&i.Invoice.Currency,
+		&i.Invoice.CurrencySymbol,
 		&i.Invoice.PaymentDueDate,
 		&i.Invoice.DateOfIssue,
 		&i.Invoice.Notes,
@@ -180,6 +198,9 @@ func (q *Queries) FindInvoiceById(ctx context.Context, id uuid.UUID) (FindInvoic
 		&i.Invoice.ClientID,
 		&i.Invoice.ShippingFeeType,
 		&i.Invoice.ShippingFee,
+		&i.Invoice.Tax,
+		&i.Invoice.InvoiceNumber,
+		&i.Invoice.Total,
 		&i.Invoiceitem.ID,
 		&i.Invoiceitem.CreatedAt,
 		&i.Invoiceitem.InvoiceID,
@@ -194,7 +215,7 @@ func (q *Queries) FindInvoiceById(ctx context.Context, id uuid.UUID) (FindInvoic
 
 const findInvoicesWhere = `-- name: FindInvoicesWhere :many
 SELECT
-    invoice.id, invoice.created_at, invoice.updated_at, invoice.deleted_at, invoice.business_id, invoice.currency, invoice.payment_due_date, invoice.date_of_issue, invoice.notes, invoice.payment_method, invoice.payment_status, invoice.client_id, invoice.shipping_fee_type, invoice.shipping_fee,
+    invoice.id, invoice.created_at, invoice.updated_at, invoice.deleted_at, invoice.business_id, invoice.currency, invoice.currency_symbol, invoice.payment_due_date, invoice.date_of_issue, invoice.notes, invoice.payment_method, invoice.payment_status, invoice.client_id, invoice.shipping_fee_type, invoice.shipping_fee, invoice.tax, invoice.invoice_number, invoice.total,
     JSON_AGG(
         jsonb_build_object(
             'id',
@@ -275,6 +296,7 @@ func (q *Queries) FindInvoicesWhere(ctx context.Context, arg FindInvoicesWherePa
 			&i.Invoice.DeletedAt,
 			&i.Invoice.BusinessID,
 			&i.Invoice.Currency,
+			&i.Invoice.CurrencySymbol,
 			&i.Invoice.PaymentDueDate,
 			&i.Invoice.DateOfIssue,
 			&i.Invoice.Notes,
@@ -283,6 +305,9 @@ func (q *Queries) FindInvoicesWhere(ctx context.Context, arg FindInvoicesWherePa
 			&i.Invoice.ClientID,
 			&i.Invoice.ShippingFeeType,
 			&i.Invoice.ShippingFee,
+			&i.Invoice.Tax,
+			&i.Invoice.InvoiceNumber,
+			&i.Invoice.Total,
 			&i.Items,
 		); err != nil {
 			return nil, err
@@ -299,31 +324,33 @@ const updateInvoice = `-- name: UpdateInvoice :one
 Update
     invoice
 SET
-    updated_at = timezone('utc', now()),
+    updated_at = timezone('utc', now()), 
     currency = COALESCE($2, currency),
     payment_due_date = COALESCE($3, payment_due_date),
     date_of_issue = COALESCE($4, date_of_issue),
     notes = COALESCE($5, notes),
     payment_method = COALESCE($6, payment_method),
-    payment_status = COALESCE($7, payment_status),
-    client_id = COALESCE($8, client_id),
-    shipping_fee_type = COALESCE($9, shipping_fee_type),
-    shipping_fee = COALESCE($10, shipping_fee)
+    client_id = COALESCE($7, client_id),
+    shipping_fee_type = COALESCE($8, shipping_fee_type),
+    shipping_fee = COALESCE($9, shipping_fee),
+    total = COALESCE($10, total),
+    payment_status = COALESCE($11, payment_status)
 WHERE
-    id = $1 RETURNING id, created_at, updated_at, deleted_at, business_id, currency, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee
+    id = $1 RETURNING id, created_at, updated_at, deleted_at, business_id, currency, currency_symbol, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee, tax, invoice_number, total
 `
 
 type UpdateInvoiceParams struct {
-	ID              uuid.UUID        `db:"id" json:"id"`
-	Currency        *string          `db:"currency" json:"currency"`
-	PaymentDueDate  *time.Time       `db:"payment_due_date" json:"payment_due_date"`
-	DateOfIssue     *time.Time       `db:"date_of_issue" json:"date_of_issue"`
-	Notes           *string          `db:"notes" json:"notes"`
-	PaymentMethod   *string          `db:"payment_method" json:"payment_method"`
-	PaymentStatus   *string          `db:"payment_status" json:"payment_status"`
-	ClientID        *uuid.UUID       `db:"client_id" json:"client_id"`
-	ShippingFeeType *string          `db:"shipping_fee_type" json:"shipping_fee_type"`
-	ShippingFee     *decimal.Decimal `db:"shipping_fee" json:"shipping_fee"`
+	ID              uuid.UUID                `db:"id" json:"id"`
+	Currency        *string                  `db:"currency" json:"currency"`
+	PaymentDueDate  *time.Time               `db:"payment_due_date" json:"payment_due_date"`
+	DateOfIssue     *time.Time               `db:"date_of_issue" json:"date_of_issue"`
+	Notes           *string                  `db:"notes" json:"notes"`
+	PaymentMethod   *string                  `db:"payment_method" json:"payment_method"`
+	ClientID        *uuid.UUID               `db:"client_id" json:"client_id"`
+	ShippingFeeType *string                  `db:"shipping_fee_type" json:"shipping_fee_type"`
+	ShippingFee     *decimal.Decimal         `db:"shipping_fee" json:"shipping_fee"`
+	Total           *decimal.Decimal         `db:"total" json:"total"`
+	PaymentStatus   NullInvoicePaymentStatus `db:"payment_status" json:"payment_status"`
 }
 
 func (q *Queries) UpdateInvoice(ctx context.Context, arg UpdateInvoiceParams) (Invoice, error) {
@@ -334,10 +361,11 @@ func (q *Queries) UpdateInvoice(ctx context.Context, arg UpdateInvoiceParams) (I
 		arg.DateOfIssue,
 		arg.Notes,
 		arg.PaymentMethod,
-		arg.PaymentStatus,
 		arg.ClientID,
 		arg.ShippingFeeType,
 		arg.ShippingFee,
+		arg.Total,
+		arg.PaymentStatus,
 	)
 	var i Invoice
 	err := row.Scan(
@@ -347,6 +375,7 @@ func (q *Queries) UpdateInvoice(ctx context.Context, arg UpdateInvoiceParams) (I
 		&i.DeletedAt,
 		&i.BusinessID,
 		&i.Currency,
+		&i.CurrencySymbol,
 		&i.PaymentDueDate,
 		&i.DateOfIssue,
 		&i.Notes,
@@ -355,6 +384,9 @@ func (q *Queries) UpdateInvoice(ctx context.Context, arg UpdateInvoiceParams) (I
 		&i.ClientID,
 		&i.ShippingFeeType,
 		&i.ShippingFee,
+		&i.Tax,
+		&i.InvoiceNumber,
+		&i.Total,
 	)
 	return i, err
 }

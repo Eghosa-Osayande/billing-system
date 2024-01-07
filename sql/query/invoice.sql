@@ -3,14 +3,16 @@ INSERT INTO
     invoice (
         business_id,
         currency,
+        currency_symbol,
         payment_due_date,
         date_of_issue,
         notes,
         payment_method,
-        payment_status,
         client_id,
         shipping_fee_type,
-        shipping_fee
+        shipping_fee,
+        total,
+        tax 
     )
 VALUES
     (
@@ -23,23 +25,27 @@ VALUES
         $7,
         $8,
         $9,
-        $10
+        $10,
+        $11,
+        $12
+       
     ) RETURNING *;
 
 -- name: UpdateInvoice :one
 Update
     invoice
 SET
-    updated_at = timezone('utc', now()),
+    updated_at = timezone('utc', now()), 
     currency = COALESCE($2, currency),
     payment_due_date = COALESCE($3, payment_due_date),
     date_of_issue = COALESCE($4, date_of_issue),
     notes = COALESCE($5, notes),
     payment_method = COALESCE($6, payment_method),
-    payment_status = COALESCE($7, payment_status),
-    client_id = COALESCE($8, client_id),
-    shipping_fee_type = COALESCE($9, shipping_fee_type),
-    shipping_fee = COALESCE($10, shipping_fee)
+    client_id = COALESCE($7, client_id),
+    shipping_fee_type = COALESCE($8, shipping_fee_type),
+    shipping_fee = COALESCE($9, shipping_fee),
+    total = COALESCE($10, total),
+    payment_status = COALESCE(sqlc.narg('payment_status'), payment_status)
 WHERE
     id = $1 RETURNING *;
 

@@ -28,7 +28,8 @@ Create table if not exists business (
 	business_name varchar(255) NOT NULL,
 	business_avatar varchar(255),
 	owner_id uuid NOT NULL,
-	FOREIGN KEY (owner_id) REFERENCES users(id)
+	FOREIGN KEY (owner_id) REFERENCES users(id),
+	invoice_count DECIMAL(10,0) NOT NULL DEFAULT 0
 );
 
 Create table if not exists client (
@@ -43,6 +44,8 @@ Create table if not exists client (
 	phone varchar(255) NULL
 );
 
+CREATE TYPE invoice_payment_status AS ENUM ('Paid', 'Unpaid', 'Partially paid', 'Overdue');
+
 Create table if not exists invoice (
 	id uuid primary key DEFAULT uuid_generate_v4() NOT NULL,
 	created_at timestamp DEFAULT timezone('utc', now()) NOT NULL,
@@ -51,31 +54,54 @@ Create table if not exists invoice (
 	business_id uuid NOT NULL,
 	FOREIGN KEY (business_id) REFERENCES business(id) ON DELETE CASCADE,
 	currency varchar(255) NULL,
+	currency_symbol varchar(255) NULL,
 	payment_due_date timestamp NULL,
 	date_of_issue timestamp NULL,
 	notes varchar(255) NULL,
 	payment_method varchar(255) NULL,
-	payment_status varchar(255) NULL,
+	payment_status invoice_payment_status DEFAULT 'Unpaid' NOT NULL,
 	client_id uuid NULL,
-	FOREIGN KEY (client_id) REFERENCES client(id) ON DELETE
-	SET
-		NULL,
-		shipping_fee_type varchar(255) NULL,
-		shipping_fee DECIMAL(10, 2) NULL,
-		CONSTRAINT check_shippingfeetype_is_not_null_when_shippingfee_is_not_null CHECK (
-			(
-				shipping_fee_type IS NULL
-				AND shipping_fee IS NULL
-			)
-			OR (
-				shipping_fee_type IS NOT NULL
-				AND shipping_fee IS NOT NULL
-			)
+	FOREIGN KEY (client_id) REFERENCES client(id) ON DELETE SET NULL,
+	shipping_fee_type varchar(255) NULL,
+	shipping_fee DECIMAL(10, 2) NULL,
+	CONSTRAINT check_shippingfeetype_is_not_null_when_shippingfee_is_not_null CHECK (
+		(
+			shipping_fee_type IS NULL
+			AND shipping_fee IS NULL
 		)
-
+		OR (
+			shipping_fee_type IS NOT NULL
+			AND shipping_fee IS NOT NULL
+		)
+	),
+	tax DECIMAL(10, 2) NULL,
+	invoice_number VARCHAR(16) NOT NULL DEFAULT '-',
+	total DECIMAL(10, 2) NULL
 );
 
 Create INDEX idx_invoice_pagination ON invoice (created_at, id);
+
+-- +goose StatementBegin
+CREATE OR REPLACE FUNCTION update_invoice_number()
+RETURNS TRIGGER AS $$
+DECLARE count INTEGER;
+BEGIN
+	count= (SELECT invoice_count FROM business WHERE id=NEW.business_id);
+
+    UPDATE business SET invoice_count = count + 1 WHERE id = NEW.business_id;
+
+    NEW.invoice_number = CONCAT('IN'::text, RIGHT( CONCAT('00000'::text , 
+             to_hex(count)),5));
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER before_insert_invoice
+BEFORE INSERT ON invoice
+FOR EACH ROW
+EXECUTE FUNCTION update_invoice_number();
+-- +goose StatementEnd
 
 CREATE TABLE IF NOT EXISTS invoiceitem (
 	id uuid primary key DEFAULT uuid_generate_v4(),
@@ -90,6 +116,7 @@ CREATE TABLE IF NOT EXISTS invoiceitem (
 );
 
 -- +goose Down
+
 DROP TABLE IF EXISTS invoiceitem;
 
 DROP TABLE IF EXISTS invoice;
@@ -103,3 +130,10 @@ DROP TABLE IF EXISTS user_email_verifications;
 DROP TABLE IF EXISTS users;
 
 DROP EXTENSION IF EXISTS "uuid-ossp";
+
+Drop TYPE if exists invoice_payment_status;
+
+DROP  TRIGGER IF EXISTS  before_insert_invoice ON invoice;
+
+DROP FUNCTION update_invoice_number();
+

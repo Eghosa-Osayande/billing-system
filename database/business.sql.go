@@ -19,7 +19,7 @@ INSERT INTO
 		owner_id
 	)
 VALUES
-	($1, $2, $3) RETURNING id, created_at, updated_at, deleted_at, business_name, business_avatar, owner_id
+	($1, $2, $3) RETURNING id, created_at, updated_at, deleted_at, business_name, business_avatar, owner_id, invoice_count
 `
 
 type CreateBusinessParams struct {
@@ -39,13 +39,14 @@ func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) 
 		&i.BusinessName,
 		&i.BusinessAvatar,
 		&i.OwnerID,
+		&i.InvoiceCount,
 	)
 	return i, err
 }
 
 const findBusinessByUserID = `-- name: FindBusinessByUserID :one
 SELECT
-	id, created_at, updated_at, deleted_at, business_name, business_avatar, owner_id
+	id, created_at, updated_at, deleted_at, business_name, business_avatar, owner_id, invoice_count
 FROM
 	business
 WHERE
@@ -65,6 +66,7 @@ func (q *Queries) FindBusinessByUserID(ctx context.Context, ownerID uuid.UUID) (
 		&i.BusinessName,
 		&i.BusinessAvatar,
 		&i.OwnerID,
+		&i.InvoiceCount,
 	)
 	return i, err
 }
@@ -77,7 +79,7 @@ SET
 	business_name = $2,
 	business_avatar = $3
 WHERE
-	owner_id = $1 RETURNING id, created_at, updated_at, deleted_at, business_name, business_avatar, owner_id
+	owner_id = $1 RETURNING id, created_at, updated_at, deleted_at, business_name, business_avatar, owner_id, invoice_count
 `
 
 type UpdateBusinessParams struct {
@@ -97,6 +99,7 @@ func (q *Queries) UpdateBusiness(ctx context.Context, arg UpdateBusinessParams) 
 		&i.BusinessName,
 		&i.BusinessAvatar,
 		&i.OwnerID,
+		&i.InvoiceCount,
 	)
 	return i, err
 }

@@ -107,15 +107,16 @@ type InvoiceItemInput struct {
 
 type CreateInvoiceInput struct {
 	Currency        *string             `json:"currency"`
+	CurrencySymbol  *string             `json:"currency_symbol"`
 	PaymentDueDate  *string             `json:"payment_due_date" validate:"omitnil,datetime=2006-01-02"`
 	DateOfIssue     *string             `json:"date_of_issue" validate:"omitnil,datetime=2006-01-02"`
 	Notes           *string             `json:"notes"`
 	PaymentMethod   *string             `json:"payment_method"`
-	PaymentStatus   *string             `json:"payment_status"`
 	Items           *[]InvoiceItemInput `json:"items"`
 	ClientID        *uuid.UUID          `json:"client_id"`
 	ShippingFeeType *string             `json:"shipping_fee_type"`
 	ShippingFee     *decimal.Decimal    `json:"shipping_fee"`
+	Tax             *decimal.Decimal    `json:"tax"`
 }
 
 func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
@@ -165,9 +166,9 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 		}
 	}
 	if input.ClientID != nil {
-		cl,err:=handler.config.ClientRepo.FindBusinessClientById(*input.ClientID, businessId)
-		log.Println(cl,err)
-		if err != nil || cl == nil{
+		cl, err := handler.config.ClientRepo.FindBusinessClientById(*input.ClientID, businessId)
+		log.Println(cl, err)
+		if err != nil || cl == nil {
 			return fiber.NewError(fiber.ErrBadRequest.Code, "Client not found")
 		}
 	}
@@ -176,14 +177,16 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 		&database.CreateInvoiceParams{
 			BusinessID:      businessId,
 			Currency:        input.Currency,
+			CurrencySymbol:  input.CurrencySymbol,
 			PaymentDueDate:  paymentDueDate,
 			DateOfIssue:     issueDate,
 			Notes:           input.Notes,
 			PaymentMethod:   input.PaymentMethod,
-			PaymentStatus:   input.PaymentStatus,
 			ClientID:        input.ClientID,
 			ShippingFeeType: input.ShippingFeeType,
 			ShippingFee:     input.ShippingFee,
+			Total:           &decimal.Decimal{},
+			Tax:             input.Tax,
 		},
 		itemsParams)
 

@@ -5,20 +5,67 @@
 package database
 
 import (
+	"database/sql/driver"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
+type InvoicePaymentStatus string
+
+const (
+	InvoicePaymentStatusPaid          InvoicePaymentStatus = "Paid"
+	InvoicePaymentStatusUnpaid        InvoicePaymentStatus = "Unpaid"
+	InvoicePaymentStatusPartiallypaid InvoicePaymentStatus = "Partially paid"
+	InvoicePaymentStatusOverdue       InvoicePaymentStatus = "Overdue"
+)
+
+func (e *InvoicePaymentStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = InvoicePaymentStatus(s)
+	case string:
+		*e = InvoicePaymentStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for InvoicePaymentStatus: %T", src)
+	}
+	return nil
+}
+
+type NullInvoicePaymentStatus struct {
+	InvoicePaymentStatus InvoicePaymentStatus `json:"invoice_payment_status"`
+	Valid                bool                 `json:"valid"` // Valid is true if InvoicePaymentStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullInvoicePaymentStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.InvoicePaymentStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.InvoicePaymentStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullInvoicePaymentStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.InvoicePaymentStatus), nil
+}
+
 type Business struct {
-	ID             uuid.UUID  `db:"id" json:"id"`
-	CreatedAt      time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt      *time.Time `db:"updated_at" json:"updated_at"`
-	DeletedAt      *time.Time `db:"deleted_at" json:"deleted_at"`
-	BusinessName   string     `db:"business_name" json:"business_name"`
-	BusinessAvatar *string    `db:"business_avatar" json:"business_avatar"`
-	OwnerID        uuid.UUID  `db:"owner_id" json:"owner_id"`
+	ID             uuid.UUID       `db:"id" json:"id"`
+	CreatedAt      time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt      *time.Time      `db:"updated_at" json:"updated_at"`
+	DeletedAt      *time.Time      `db:"deleted_at" json:"deleted_at"`
+	BusinessName   string          `db:"business_name" json:"business_name"`
+	BusinessAvatar *string         `db:"business_avatar" json:"business_avatar"`
+	OwnerID        uuid.UUID       `db:"owner_id" json:"owner_id"`
+	InvoiceCount   decimal.Decimal `db:"invoice_count" json:"invoice_count"`
 }
 
 type Client struct {
@@ -33,20 +80,24 @@ type Client struct {
 }
 
 type Invoice struct {
-	ID              uuid.UUID        `db:"id" json:"id"`
-	CreatedAt       time.Time        `db:"created_at" json:"created_at"`
-	UpdatedAt       *time.Time       `db:"updated_at" json:"updated_at"`
-	DeletedAt       *time.Time       `db:"deleted_at" json:"deleted_at"`
-	BusinessID      uuid.UUID        `db:"business_id" json:"business_id"`
-	Currency        *string          `db:"currency" json:"currency"`
-	PaymentDueDate  *time.Time       `db:"payment_due_date" json:"payment_due_date"`
-	DateOfIssue     *time.Time       `db:"date_of_issue" json:"date_of_issue"`
-	Notes           *string          `db:"notes" json:"notes"`
-	PaymentMethod   *string          `db:"payment_method" json:"payment_method"`
-	PaymentStatus   *string          `db:"payment_status" json:"payment_status"`
-	ClientID        *uuid.UUID       `db:"client_id" json:"client_id"`
-	ShippingFeeType *string          `db:"shipping_fee_type" json:"shipping_fee_type"`
-	ShippingFee     *decimal.Decimal `db:"shipping_fee" json:"shipping_fee"`
+	ID              uuid.UUID            `db:"id" json:"id"`
+	CreatedAt       time.Time            `db:"created_at" json:"created_at"`
+	UpdatedAt       *time.Time           `db:"updated_at" json:"updated_at"`
+	DeletedAt       *time.Time           `db:"deleted_at" json:"deleted_at"`
+	BusinessID      uuid.UUID            `db:"business_id" json:"business_id"`
+	Currency        *string              `db:"currency" json:"currency"`
+	CurrencySymbol  *string              `db:"currency_symbol" json:"currency_symbol"`
+	PaymentDueDate  *time.Time           `db:"payment_due_date" json:"payment_due_date"`
+	DateOfIssue     *time.Time           `db:"date_of_issue" json:"date_of_issue"`
+	Notes           *string              `db:"notes" json:"notes"`
+	PaymentMethod   *string              `db:"payment_method" json:"payment_method"`
+	PaymentStatus   InvoicePaymentStatus `db:"payment_status" json:"payment_status"`
+	ClientID        *uuid.UUID           `db:"client_id" json:"client_id"`
+	ShippingFeeType *string              `db:"shipping_fee_type" json:"shipping_fee_type"`
+	ShippingFee     *decimal.Decimal     `db:"shipping_fee" json:"shipping_fee"`
+	Tax             *decimal.Decimal     `db:"tax" json:"tax"`
+	InvoiceNumber   string               `db:"invoice_number" json:"invoice_number"`
+	Total           *decimal.Decimal     `db:"total" json:"total"`
 }
 
 type Invoiceitem struct {

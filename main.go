@@ -15,7 +15,6 @@ import (
 	"github.com/gofiber/swagger"
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 )
 
 // @title Blanq Invoice API
