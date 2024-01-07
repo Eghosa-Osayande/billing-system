@@ -102,8 +102,10 @@ type InvoiceItemInput struct {
 	Price        decimal.Decimal  `json:"price" validate:"required,number" db:"price"`
 	Quantity     int              `json:"quantity" validate:"required,number" db:"quantity"`
 	Discount     *decimal.Decimal `json:"discount" db:"discount,number"`
-	DiscountType *string          `json:"discount_type" db:"discount_type"`
+	DiscountType *string          `json:"discount_type" db:"discount_type" validate:"omitempty,oneof=fixed percent"`
 }
+
+
 
 type CreateInvoiceInput struct {
 	Currency        *string             `json:"currency"`
@@ -114,7 +116,7 @@ type CreateInvoiceInput struct {
 	PaymentMethod   *string             `json:"payment_method"`
 	Items           *[]InvoiceItemInput `json:"items"`
 	ClientID        *uuid.UUID          `json:"client_id"`
-	ShippingFeeType *string             `json:"shipping_fee_type"`
+	ShippingFeeType *string             `json:"shipping_fee_type" validate:"omitnil,oneof=fixed percent"`
 	ShippingFee     *decimal.Decimal    `json:"shipping_fee"`
 	Tax             *decimal.Decimal    `json:"tax"`
 }

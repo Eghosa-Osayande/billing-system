@@ -46,6 +46,7 @@ Create table if not exists client (
 
 CREATE TYPE invoice_payment_status AS ENUM ('Paid', 'Unpaid', 'Partially paid', 'Overdue');
 
+
 Create table if not exists invoice (
 	id uuid primary key DEFAULT uuid_generate_v4() NOT NULL,
 	created_at timestamp DEFAULT timezone('utc', now()) NOT NULL,
@@ -112,7 +113,17 @@ CREATE TABLE IF NOT EXISTS invoiceitem (
 	price DECIMAL(10, 2) NOT NULL,
 	quantity DECIMAL(10, 2) NOT NULL,
 	discount DECIMAL(10, 2) NULL,
-	discount_type varchar(255) NULL
+	discount_type varchar(255) NULL,
+	CONSTRAINT check_discounttype_is_not_null_when_discount_is_not_null CHECK (
+		(
+			discount_type IS NULL
+			AND discount IS NULL
+		)
+		OR (
+			discount_type IS NOT NULL
+			AND discount IS NOT NULL
+		)
+	)
 );
 
 -- +goose Down
