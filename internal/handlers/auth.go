@@ -12,6 +12,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -88,7 +89,8 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 		verificationData := &database.CreateOrUpdateUserEmailVerificationParams{
 			Email:     input.Email,
 			Code:      generateOTP(),
-			ExpiresAt: generateOtpExpiration()}
+			ExpiresAt: pgtype.Timestamptz{Time: generateOtpExpiration(), Valid: true},
+		}
 
 		verificationErr := handler.config.AuthRepo.CreateOrUpdateUserEmailVerificationData(verificationData)
 
@@ -134,7 +136,7 @@ func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 	verificationData := &database.CreateOrUpdateUserEmailVerificationParams{
 		Email:     input.Email,
 		Code:      generateOTP(),
-		ExpiresAt: generateOtpExpiration()}
+		ExpiresAt: pgtype.Timestamptz{Time: generateOtpExpiration(), Valid: true},}
 
 	err = handler.config.AuthRepo.CreateOrUpdateUserEmailVerificationData(verificationData)
 
@@ -172,7 +174,7 @@ func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
 
 	if verificationData.Code == input.Code {
 
-		if verificationData.ExpiresAt.Before(time.Now().UTC()) {
+		if verificationData.ExpiresAt.Time.Before(time.Now().UTC()) {
 			// TODO: optimise removal of expired otp
 			// handler.config.AuthRepo.DeleteEmailVerificationDataByEmail(input.Email)
 			return fiber.NewError(400, "OTP has expired")

@@ -1,5 +1,7 @@
 package repos
 
+import "github.com/jackc/pgx/v5"
+
 type ApiRepos struct {
 	ClientRepo   *ClientRepo
 	BusinessRepo *BusinessRepo
@@ -24,4 +26,8 @@ type ApiReposParams struct {
 	AuthRepo     *AuthRepo
 	InvoiceRepo  *InvoiceRepo
 	*UserRepo
+}
+
+func isErrNoRows (err error) bool {
+	return err==pgx.ErrNoRows;
 }

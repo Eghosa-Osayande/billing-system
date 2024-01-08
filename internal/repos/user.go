@@ -25,5 +25,6 @@ func (repo *UserRepo) getUserById(id uuid.UUID) (*database.User, error) {
 	if err != nil {
 		return nil, err
 	}
+	
 	return &user, nil
 }

@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/shopspring/decimal"
 )
 
@@ -24,28 +23,6 @@ func NewInvoiceRepo(db *database.Queries) *InvoiceRepo {
 
 }
 
-func (repo *InvoiceRepo) FindAllInvoicesByBusinessID(businessID uuid.UUID) ([]database.InvoiceWithItems, error) {
-	ctx := context.Background()
-	invoices, err := repo.db.FindAllBusinessInvoices(ctx, businessID)
-	if err != nil {
-		return nil, err
-	}
-
-	invoiceWithItems := make([]database.InvoiceWithItems, len(invoices))
-	for index := range invoices {
-		invoice := invoices[index]
-		invoiceitems, err := repo.db.FindInvoiceItemsByInvoiceId(ctx, invoice.ID)
-		if err != nil {
-			return nil, err
-		}
-		invoiceWithItems[index] = database.InvoiceWithItems{
-			Invoice: invoice,
-			Items:   invoiceitems,
-		}
-	}
-	return invoiceWithItems, nil
-}
-
 func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, items []database.CreateInvoiceItemParams) (*database.InvoiceWithItems, error) {
 
 	ctx := context.Background()
@@ -57,15 +34,13 @@ func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, item
 
 	defer tx.Rollback(ctx)
 	db := repo.db.WithTx(tx)
-	
+
 	newinvoice, err := db.CreateInvoice(ctx, *input)
-	
+
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			fmt.Println(pgErr.Message)
-			fmt.Println(pgErr.Code)
-		}
+
+		fmt.Println(err)
+
 		return nil, err
 	}
 
@@ -82,9 +57,8 @@ func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, item
 
 	}
 
-	fmt.Println("newItems")
 	invoiceWithTotal, err := calculateInvoiceTotal(db, newinvoice.ID)
-	fmt.Println("newItems",err)
+
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +69,7 @@ func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, item
 		return nil, err
 
 	}
-	
+
 	return &database.InvoiceWithItems{
 		Invoice: *invoiceWithTotal,
 		Items:   newItems,
@@ -103,30 +77,39 @@ func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, item
 
 }
 
-func (repo *InvoiceRepo) FindInvoicesWhere(input *database.FindInvoicesWhereParams) ([]database.InvoiceWithItemsT[any], error) {
+func (repo *InvoiceRepo) FindInvoicesWhere(input *database.FindInvoicesWhereParams) ([]database.InvoiceWithItemsAny, error) {
 	ctx := context.Background()
 
 	result, err := repo.db.FindInvoicesWhere(ctx, *input)
 	if err != nil {
+		fmt.Println("uuuuu")
 		return nil, err
 	}
 
-	invoiceList := make([]database.InvoiceWithItemsT[any], len(result))
+	invoiceList := make([]database.InvoiceWithItemsAny, len(result))
 
 	for index := range result {
 		row := result[index]
-		items := new(any)
+		jsonItems := new([]any)
+		finalItems := make([]any, 0)
 
-		fmt.Print("rr")
-		err := json.Unmarshal(row.Items, &items)
+		err := json.Unmarshal(row.Items, &jsonItems)
 		if err != nil {
-			fmt.Print("err") // return nil, err
+			fmt.Println("yyyyyyyy")
+			return nil, err
+		}
+
+		for _, v := range *jsonItems {
+			if v != nil {
+				finalItems = append(finalItems, v)
+			}
 
 		}
 
-		invoiceList[index] = database.InvoiceWithItemsT[any]{
+		invoiceList[index] = database.InvoiceWithItemsAny{
 			Invoice: row.Invoice,
-			Items:   items,
+			Items:   finalItems,
+			Clients: &row.Client,
 		}
 	}
 
@@ -135,19 +118,21 @@ func (repo *InvoiceRepo) FindInvoicesWhere(input *database.FindInvoicesWherePara
 }
 
 func calculateInvoiceTotal(db *database.Queries, invoiceId uuid.UUID) (updatedInvoice *database.Invoice, err error) {
-	
+
 	ctx := context.Background()
-	
-	result, err := db.FindInvoiceById(ctx, invoiceId)
+
+	invoice, err := db.FindInvoiceById(ctx, invoiceId)
 	if err != nil {
 		return
 	}
 
-	invoice := result.Invoice
-
 	items, err := db.FindInvoiceItemsByInvoiceId(ctx, invoice.ID)
+
 	if err != nil {
-		return
+		if !isErrNoRows(err) {
+			return
+		}
+
 	}
 
 	itemTotals := make([]decimal.Decimal, len(items))
@@ -205,9 +190,8 @@ func calculateInvoiceTotal(db *database.Queries, invoiceId uuid.UUID) (updatedIn
 	}
 
 	total := subtotal.Add(shippingfee).Add(tax)
-	fmt.Println("fffffff")
+
 	invoiceUpdated, err := db.UpdateInvoice(ctx, database.UpdateInvoiceParams{ID: invoice.ID, Total: &total})
-	fmt.Println("fffffffff",err)
 
 	updatedInvoice = &invoiceUpdated
 

@@ -80,7 +80,7 @@ func main() {
 	handlers.NewInvoiceHandler(config).RegisterHandlers(app)
 
 	if err := app.Listen(":" + port); err != nil {
-		log.Fatal("Server failed to start")
+		log.Fatal("Server failed to start",err)
 	}
 
 }

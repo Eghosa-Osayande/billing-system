@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/shopspring/decimal"
 )
 
@@ -48,7 +49,7 @@ func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	var cursor_time *time.Time
+	var cursor_time pgtype.Timestamptz
 	var cursor_id *uuid.UUID
 
 	if input.Cursor != nil {
@@ -63,7 +64,7 @@ func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
 			return fiber.NewError(fiber.ErrBadRequest.Code, "invalid-cursor")
 		}
 
-		cursor_time, cursor_id = &created_at, &parsedId
+		cursor_time, cursor_id = pgtype.Timestamptz{Time: created_at,Valid: true}, &parsedId
 
 	}
 
@@ -88,9 +89,9 @@ func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
 			util.ListToPagedResult(
 				invoices,
 				func(
-					item database.InvoiceWithItemsT[any],
+					item database.InvoiceWithItemsAny,
 				) (t time.Time, uuid string) {
-					return item.CreatedAt, item.ID.String()
+					return item.CreatedAt.Time, item.ID.String()
 				}),
 		),
 	)
@@ -151,21 +152,23 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 			}
 		}
 	}
-	var paymentDueDate *time.Time
+	var paymentDueDate pgtype.Timestamptz
 	if input.PaymentDueDate != nil {
-		paymentDueDate = new(time.Time)
-		*paymentDueDate, err = time.Parse("2006-01-02", *input.PaymentDueDate)
+		
+		d, err := time.Parse("2006-01-02", *input.PaymentDueDate)
 		if err != nil {
 			return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid date format")
 		}
+		paymentDueDate = pgtype.Timestamptz{Time: d, Valid: true}
+
 	}
-	var issueDate *time.Time
+	var issueDate pgtype.Timestamptz
 	if input.DateOfIssue != nil {
-		issueDate = new(time.Time)
-		*issueDate, err = time.Parse("2006-01-02", *input.DateOfIssue)
+		d, err := time.Parse("2006-01-02", *input.DateOfIssue)
 		if err != nil {
 			return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid date format")
 		}
+		issueDate = pgtype.Timestamptz{Time: d, Valid: true}
 	}
 	if input.ClientID != nil {
 		cl, err := handler.config.ClientRepo.FindBusinessClientById(*input.ClientID, businessId)

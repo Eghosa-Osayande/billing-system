@@ -1,12 +1,13 @@
 -- +goose Up
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+SET TIMEZONE TO 'UTC';
 
 
 Create table if not exists users (
 	id uuid primary key DEFAULT uuid_generate_v4() NOT NULL,
-	created_at timestamp DEFAULT timezone('utc', now()) NOT NULL,
-	updated_at timestamp,
-	deleted_at timestamp,
+	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
+	updated_at TIMESTAMPTZ,
+	deleted_at TIMESTAMPTZ,
 	fullname varchar(255) NOT NULL,
 	email varchar(255) NOT NULL UNIQUE,
 	password varchar(255) NOT NULL,
@@ -15,16 +16,16 @@ Create table if not exists users (
 
 Create table if not exists user_email_verifications (
 	email varchar(255) primary key NOT NULL UNIQUE,
-	created_at timestamp DEFAULT timezone('utc', now()) NOT NULL,
+	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
 	code varchar(255) NOT NULL,
-	expires_at timestamp NOT NULL
+	expires_at TIMESTAMPTZ NOT NULL
 );
 
 Create table if not exists business (
 	id uuid primary key DEFAULT uuid_generate_v4() NOT NULL,
-	created_at timestamp DEFAULT timezone('utc', now()) NOT NULL,
-	updated_at timestamp,
-	deleted_at timestamp,
+	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
+	updated_at TIMESTAMPTZ,
+	deleted_at TIMESTAMPTZ,
 	business_name varchar(255) NOT NULL,
 	business_avatar varchar(255),
 	owner_id uuid NOT NULL,
@@ -34,9 +35,9 @@ Create table if not exists business (
 
 Create table if not exists client (
 	id uuid primary key DEFAULT uuid_generate_v4() NOT NULL,
-	created_at timestamp DEFAULT timezone('utc', now()) NOT NULL,
-	updated_at timestamp,
-	deleted_at timestamp,
+	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
+	updated_at TIMESTAMPTZ,
+	deleted_at TIMESTAMPTZ,
 	business_id uuid NOT NULL,
 	FOREIGN KEY (business_id) REFERENCES business(id) ON DELETE CASCADE,
 	fullname varchar(255) NOT NULL,
@@ -49,15 +50,15 @@ CREATE TYPE invoice_payment_status AS ENUM ('Paid', 'Unpaid', 'Partially paid', 
 
 Create table if not exists invoice (
 	id uuid primary key DEFAULT uuid_generate_v4() NOT NULL,
-	created_at timestamp DEFAULT timezone('utc', now()) NOT NULL,
-	updated_at timestamp,
-	deleted_at timestamp,
+	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
+	updated_at TIMESTAMPTZ,
+	deleted_at TIMESTAMPTZ,
 	business_id uuid NOT NULL,
 	FOREIGN KEY (business_id) REFERENCES business(id) ON DELETE CASCADE,
 	currency varchar(255) NULL,
 	currency_symbol varchar(255) NULL,
-	payment_due_date timestamp NULL,
-	date_of_issue timestamp NULL,
+	payment_due_date TIMESTAMPTZ NULL,
+	date_of_issue TIMESTAMPTZ NULL,
 	notes varchar(255) NULL,
 	payment_method varchar(255) NULL,
 	payment_status invoice_payment_status DEFAULT 'Unpaid' NOT NULL,
@@ -106,7 +107,7 @@ EXECUTE FUNCTION update_invoice_number();
 
 CREATE TABLE IF NOT EXISTS invoiceitem (
 	id uuid primary key DEFAULT uuid_generate_v4(),
-	created_at timestamp DEFAULT timezone('utc', now()),
+	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()),
 	invoice_id uuid NOT NULL,
 	FOREIGN KEY (invoice_id) REFERENCES invoice(id) ON DELETE CASCADE,
 	title varchar(255) NOT NULL,

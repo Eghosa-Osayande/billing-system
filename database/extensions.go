@@ -15,9 +15,11 @@ func (q Queries) GetSqlDB() *pgx.Conn {
 type InvoiceWithItemsT[T any] struct  {
 	Invoice 
 	Items T `json:"items"`
+	Clients *Client `json:"client"`
 }
 
 type InvoiceWithItems InvoiceWithItemsT[[]Invoiceitem]
+type InvoiceWithItemsAny InvoiceWithItemsT[any]
 
 
 // type InvoiceItem struct {

@@ -7,7 +7,8 @@ package database
 
 import (
 	"context"
-	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createOrUpdateUserEmailVerification = `-- name: CreateOrUpdateUserEmailVerification :exec
@@ -24,9 +25,9 @@ SET
 `
 
 type CreateOrUpdateUserEmailVerificationParams struct {
-	Email     string    `db:"email" json:"email"`
-	Code      string    `db:"code" json:"code"`
-	ExpiresAt time.Time `db:"expires_at" json:"expires_at"`
+	Email     string             `db:"email" json:"email"`
+	Code      string             `db:"code" json:"code"`
+	ExpiresAt pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
 }
 
 func (q *Queries) CreateOrUpdateUserEmailVerification(ctx context.Context, arg CreateOrUpdateUserEmailVerificationParams) error {

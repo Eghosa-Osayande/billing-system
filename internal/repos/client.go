@@ -22,21 +22,17 @@ func NewClientRepo(db *database.Queries) *ClientRepo {
 func (repo *ClientRepo) GetClients(businessId uuid.UUID) ([]database.Client, error) {
 	ctx := context.Background()
 
-	clients, err := repo.db.GetClientsByBusinessId(ctx, businessId)
+	clientsList, err := repo.db.GetClientsByBusinessId(ctx, businessId)
 
-	if database.IsErrNoRows(err) {
-		return nil, nil
+	if isErrNoRows(err) {
+		return clientsList, nil
 	}
 
 	if err != nil {
-		return nil, err
+		return clientsList, err
 	}
 
-	clientList := []database.Client{}
-
-	clientList = append(clientList, clients...)
-
-	return clientList, nil
+	return clientsList, nil
 
 }
 

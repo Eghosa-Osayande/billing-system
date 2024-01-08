@@ -7,9 +7,9 @@ package database
 import (
 	"database/sql/driver"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/shopspring/decimal"
 )
 
@@ -58,37 +58,37 @@ func (ns NullInvoicePaymentStatus) Value() (driver.Value, error) {
 }
 
 type Business struct {
-	ID             uuid.UUID       `db:"id" json:"id"`
-	CreatedAt      time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt      *time.Time      `db:"updated_at" json:"updated_at"`
-	DeletedAt      *time.Time      `db:"deleted_at" json:"deleted_at"`
-	BusinessName   string          `db:"business_name" json:"business_name"`
-	BusinessAvatar *string         `db:"business_avatar" json:"business_avatar"`
-	OwnerID        uuid.UUID       `db:"owner_id" json:"owner_id"`
-	InvoiceCount   decimal.Decimal `db:"invoice_count" json:"invoice_count"`
+	ID             uuid.UUID          `db:"id" json:"id"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `db:"deleted_at" json:"deleted_at"`
+	BusinessName   string             `db:"business_name" json:"business_name"`
+	BusinessAvatar *string            `db:"business_avatar" json:"business_avatar"`
+	OwnerID        uuid.UUID          `db:"owner_id" json:"owner_id"`
+	InvoiceCount   decimal.Decimal    `db:"invoice_count" json:"invoice_count"`
 }
 
 type Client struct {
-	ID         uuid.UUID  `db:"id" json:"id"`
-	CreatedAt  time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt  *time.Time `db:"updated_at" json:"updated_at"`
-	DeletedAt  *time.Time `db:"deleted_at" json:"deleted_at"`
-	BusinessID uuid.UUID  `db:"business_id" json:"business_id"`
-	Fullname   string     `db:"fullname" json:"fullname"`
-	Email      *string    `db:"email" json:"email"`
-	Phone      *string    `db:"phone" json:"phone"`
+	ID         uuid.UUID          `db:"id" json:"id"`
+	CreatedAt  pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	DeletedAt  pgtype.Timestamptz `db:"deleted_at" json:"deleted_at"`
+	BusinessID uuid.UUID          `db:"business_id" json:"business_id"`
+	Fullname   string             `db:"fullname" json:"fullname"`
+	Email      *string            `db:"email" json:"email"`
+	Phone      *string            `db:"phone" json:"phone"`
 }
 
 type Invoice struct {
 	ID              uuid.UUID            `db:"id" json:"id"`
-	CreatedAt       time.Time            `db:"created_at" json:"created_at"`
-	UpdatedAt       *time.Time           `db:"updated_at" json:"updated_at"`
-	DeletedAt       *time.Time           `db:"deleted_at" json:"deleted_at"`
+	CreatedAt       pgtype.Timestamptz   `db:"created_at" json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz   `db:"updated_at" json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz   `db:"deleted_at" json:"deleted_at"`
 	BusinessID      uuid.UUID            `db:"business_id" json:"business_id"`
 	Currency        *string              `db:"currency" json:"currency"`
 	CurrencySymbol  *string              `db:"currency_symbol" json:"currency_symbol"`
-	PaymentDueDate  *time.Time           `db:"payment_due_date" json:"payment_due_date"`
-	DateOfIssue     *time.Time           `db:"date_of_issue" json:"date_of_issue"`
+	PaymentDueDate  pgtype.Timestamptz   `db:"payment_due_date" json:"payment_due_date"`
+	DateOfIssue     pgtype.Timestamptz   `db:"date_of_issue" json:"date_of_issue"`
 	Notes           *string              `db:"notes" json:"notes"`
 	PaymentMethod   *string              `db:"payment_method" json:"payment_method"`
 	PaymentStatus   InvoicePaymentStatus `db:"payment_status" json:"payment_status"`
@@ -101,30 +101,30 @@ type Invoice struct {
 }
 
 type Invoiceitem struct {
-	ID           uuid.UUID        `db:"id" json:"id"`
-	CreatedAt    *time.Time       `db:"created_at" json:"created_at"`
-	InvoiceID    uuid.UUID        `db:"invoice_id" json:"invoice_id"`
-	Title        string           `db:"title" json:"title"`
-	Price        decimal.Decimal  `db:"price" json:"price"`
-	Quantity     decimal.Decimal  `db:"quantity" json:"quantity"`
-	Discount     *decimal.Decimal `db:"discount" json:"discount"`
-	DiscountType *string          `db:"discount_type" json:"discount_type"`
+	ID           uuid.UUID          `db:"id" json:"id"`
+	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	InvoiceID    uuid.UUID          `db:"invoice_id" json:"invoice_id"`
+	Title        string             `db:"title" json:"title"`
+	Price        decimal.Decimal    `db:"price" json:"price"`
+	Quantity     decimal.Decimal    `db:"quantity" json:"quantity"`
+	Discount     *decimal.Decimal   `db:"discount" json:"discount"`
+	DiscountType *string            `db:"discount_type" json:"discount_type"`
 }
 
 type User struct {
-	ID            uuid.UUID  `db:"id" json:"id"`
-	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt     *time.Time `db:"updated_at" json:"updated_at"`
-	DeletedAt     *time.Time `db:"deleted_at" json:"deleted_at"`
-	Fullname      string     `db:"fullname" json:"fullname"`
-	Email         string     `db:"email" json:"email"`
-	Password      string     `db:"password" json:"password"`
-	EmailVerified bool       `db:"email_verified" json:"email_verified"`
+	ID            uuid.UUID          `db:"id" json:"id"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	DeletedAt     pgtype.Timestamptz `db:"deleted_at" json:"deleted_at"`
+	Fullname      string             `db:"fullname" json:"fullname"`
+	Email         string             `db:"email" json:"email"`
+	Password      string             `db:"password" json:"password"`
+	EmailVerified bool               `db:"email_verified" json:"email_verified"`
 }
 
 type UserEmailVerification struct {
-	Email     string    `db:"email" json:"email"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-	Code      string    `db:"code" json:"code"`
-	ExpiresAt time.Time `db:"expires_at" json:"expires_at"`
+	Email     string             `db:"email" json:"email"`
+	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	Code      string             `db:"code" json:"code"`
+	ExpiresAt pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
 }

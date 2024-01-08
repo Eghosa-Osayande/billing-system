@@ -57,56 +57,34 @@ WHERE
 
 -- name: FindInvoiceById :one
 SELECT
-    sqlc.embed(invoice),
-    sqlc.embed(invoiceitem)
-FROM
-    invoice
-    JOIN invoiceitem ON invoiceitem.invoice_id = invoice.id
-WHERE
-    (invoice.id = $1);
-
--- name: FindAllBusinessInvoices :many
-SELECT
     *
 FROM
     invoice
 WHERE
-    business_id = $1
-ORDER BY
-    created_at DESC;
+    (invoice.id = $1);
+
 
 -- name: FindInvoicesWhere :many
 SELECT
     sqlc.embed(invoice),
+     sqlc.embed(client),
     JSON_AGG(
-        jsonb_build_object(
-            'id',
-            invoiceitem.id,
-            'created_at',
-            invoiceitem.created_at,
-            'invoice_id',
-            invoiceitem.invoice_id,
-            'title',
-            invoiceitem.title,
-            'price',
-            invoiceitem.price,
-            'quantity',
-            invoiceitem.quantity,
-            'discount',
-            invoiceitem.discount,
-            'discount_type',
-            invoiceitem.discount_type
-        )
+        invoiceitem.*
     ) as items
+    
 FROM
     invoice
-    JOIN invoiceitem ON invoiceitem.invoice_id = invoice.id
+    LEFT JOIN invoiceitem ON invoice.id=invoiceitem.invoice_id
+    LEFT JOIN client ON invoice.client_id=client.id
 WHERE
     invoice.business_id = COALESCE(sqlc.narg('business_id'), invoice.business_id)
-    AND invoice.client_id = COALESCE(sqlc.narg('client_id'), invoice.client_id)
+    AND (
+        sqlc.narg('client_id')::uuid is null
+        or invoice.client_id = sqlc.narg('client_id')
+    )
     AND invoice.id = COALESCE(sqlc.narg('invoice_id'), invoice.id)
     AND (
-        sqlc.narg('cursor_time')::timestamp IS NULL
+        sqlc.narg('cursor_time')::timestamptz IS NULL
         OR invoice.created_at <= sqlc.narg('cursor_time')
     )
     AND (
@@ -114,7 +92,7 @@ WHERE
         OR invoice.id < sqlc.narg('cursor_id')
     )
 GROUP BY
-    invoice.id
+    invoice.id, client.id
 ORDER BY
     invoice.created_at DESC, invoice.id DESC
 LIMIT
