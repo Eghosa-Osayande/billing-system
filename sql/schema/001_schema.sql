@@ -4,7 +4,7 @@ SET TIMEZONE TO 'UTC';
 
 
 Create table if not exists users (
-	id uuid primary key DEFAULT uuid_generate_v4() NOT NULL,
+	id uuid primary key DEFAULT uuid_generate_v1mc() NOT NULL,
 	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
 	updated_at TIMESTAMPTZ,
 	deleted_at TIMESTAMPTZ,
@@ -22,7 +22,7 @@ Create table if not exists user_email_verifications (
 );
 
 Create table if not exists business (
-	id uuid primary key DEFAULT uuid_generate_v4() NOT NULL,
+	id uuid primary key DEFAULT uuid_generate_v1mc() NOT NULL,
 	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
 	updated_at TIMESTAMPTZ,
 	deleted_at TIMESTAMPTZ,
@@ -34,7 +34,7 @@ Create table if not exists business (
 );
 
 Create table if not exists client (
-	id uuid primary key DEFAULT uuid_generate_v4() NOT NULL,
+	id uuid primary key DEFAULT uuid_generate_v1mc() NOT NULL,
 	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
 	updated_at TIMESTAMPTZ,
 	deleted_at TIMESTAMPTZ,
@@ -49,7 +49,7 @@ CREATE TYPE invoice_payment_status AS ENUM ('Paid', 'Unpaid', 'Partially paid', 
 
 
 Create table if not exists invoice (
-	id uuid primary key DEFAULT uuid_generate_v4() NOT NULL,
+	id uuid primary key DEFAULT uuid_generate_v1mc() NOT NULL,
 	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
 	updated_at TIMESTAMPTZ,
 	deleted_at TIMESTAMPTZ,
@@ -106,7 +106,7 @@ EXECUTE FUNCTION update_invoice_number();
 -- +goose StatementEnd
 
 CREATE TABLE IF NOT EXISTS invoiceitem (
-	id uuid primary key DEFAULT uuid_generate_v4(),
+	id uuid primary key DEFAULT uuid_generate_v1mc(),
 	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()),
 	invoice_id uuid NOT NULL,
 	FOREIGN KEY (invoice_id) REFERENCES invoice(id) ON DELETE CASCADE,
@@ -143,9 +143,12 @@ DROP TABLE IF EXISTS users;
 
 DROP EXTENSION IF EXISTS "uuid-ossp";
 
+DROP INDEX IF EXISTS idx_invoice_pagination;
+
 Drop TYPE if exists invoice_payment_status;
 
 DROP  TRIGGER IF EXISTS  before_insert_invoice ON invoice;
 
 DROP FUNCTION update_invoice_number();
+
 

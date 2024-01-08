@@ -12,7 +12,7 @@ INSERT INTO
         shipping_fee_type,
         shipping_fee,
         total,
-        tax 
+        tax
     )
 VALUES
     (
@@ -28,14 +28,13 @@ VALUES
         $10,
         $11,
         $12
-       
     ) RETURNING *;
 
 -- name: UpdateInvoice :one
 Update
     invoice
 SET
-    updated_at = timezone('utc', now()), 
+    updated_at = timezone('utc', now()),
     currency = COALESCE($2, currency),
     payment_due_date = COALESCE($3, payment_due_date),
     date_of_issue = COALESCE($4, date_of_issue),
@@ -63,38 +62,60 @@ FROM
 WHERE
     (invoice.id = $1);
 
-
 -- name: FindInvoicesWhere :many
 SELECT
     sqlc.embed(invoice),
-     sqlc.embed(client),
-    JSON_AGG(
-        invoiceitem.*
-    ) as items
-    
+    JSON_AGG(client.*) as client,
+    JSON_AGG(invoiceitem.*) as items
 FROM
     invoice
-    LEFT JOIN invoiceitem ON invoice.id=invoiceitem.invoice_id
-    LEFT JOIN client ON invoice.client_id=client.id
+    LEFT JOIN invoiceitem ON invoice.id = invoiceitem.invoice_id
+    LEFT JOIN client ON invoice.client_id = client.id
 WHERE
-    invoice.business_id = COALESCE(sqlc.narg('business_id'), invoice.business_id)
-    AND (
-        sqlc.narg('client_id')::uuid is null
-        or invoice.client_id = sqlc.narg('client_id')
+    (
+        (
+            (
+                sqlc.narg('business_id') :: uuid is not null
+                and invoice.business_id = sqlc.narg('business_id')
+            )
+            or sqlc.narg('business_id') is null
+        )
+        and (
+            (
+                sqlc.narg('client_id') :: uuid is not null
+                and invoice.client_id = sqlc.narg('client_id')
+            )
+            or sqlc.narg('client_id') is null
+        ) 
+        and (
+            (
+                sqlc.narg('invoice_id') :: uuid is not null
+                and invoice.id = sqlc.narg('invoice_id')
+            )
+            or sqlc.narg('invoice_id') is null
+        )
+        and (
+            (
+                sqlc.narg('cursor_time') :: timestamptz is not null
+                and invoice.created_at <= sqlc.narg('cursor_time') :: timestamptz
+            )
+            or sqlc.narg('cursor_time') :: timestamptz is null
+        )
+        and (
+            (
+                sqlc.narg('cursor_id') :: uuid is not null
+                and invoice.id != sqlc.narg('cursor_id') :: uuid
+            )
+            or sqlc.narg('cursor_id') :: uuid is null
+        )
+
     )
-    AND invoice.id = COALESCE(sqlc.narg('invoice_id'), invoice.id)
-    AND (
-        sqlc.narg('cursor_time')::timestamptz IS NULL
-        OR invoice.created_at <= sqlc.narg('cursor_time')
-    )
-    AND (
-        sqlc.narg('cursor_id')::uuid IS NULL
-        OR invoice.id < sqlc.narg('cursor_id')
-    )
+    
 GROUP BY
-    invoice.id, client.id
+    invoice.id,
+    client.id
 ORDER BY
-    invoice.created_at DESC, invoice.id DESC
+    invoice.created_at DESC,
+    invoice.id DESC
 LIMIT
     COALESCE(sqlc.narg('limit'), 1);
-

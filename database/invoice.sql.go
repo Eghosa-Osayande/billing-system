@@ -27,7 +27,7 @@ INSERT INTO
         shipping_fee_type,
         shipping_fee,
         total,
-        tax 
+        tax
     )
 VALUES
     (
@@ -43,7 +43,6 @@ VALUES
         $10,
         $11,
         $12
-       
     ) RETURNING id, created_at, updated_at, deleted_at, business_id, currency, currency_symbol, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee, tax, invoice_number, total
 `
 
@@ -151,34 +150,58 @@ func (q *Queries) FindInvoiceById(ctx context.Context, id uuid.UUID) (Invoice, e
 const findInvoicesWhere = `-- name: FindInvoicesWhere :many
 SELECT
     invoice.id, invoice.created_at, invoice.updated_at, invoice.deleted_at, invoice.business_id, invoice.currency, invoice.currency_symbol, invoice.payment_due_date, invoice.date_of_issue, invoice.notes, invoice.payment_method, invoice.payment_status, invoice.client_id, invoice.shipping_fee_type, invoice.shipping_fee, invoice.tax, invoice.invoice_number, invoice.total,
-     client.id, client.created_at, client.updated_at, client.deleted_at, client.business_id, client.fullname, client.email, client.phone,
-    JSON_AGG(
-        invoiceitem.*
-    ) as items
-    
+    JSON_AGG(client.*) as client,
+    JSON_AGG(invoiceitem.*) as items
 FROM
     invoice
-    LEFT JOIN invoiceitem ON invoice.id=invoiceitem.invoice_id
-    LEFT JOIN client ON invoice.client_id=client.id
+    LEFT JOIN invoiceitem ON invoice.id = invoiceitem.invoice_id
+    LEFT JOIN client ON invoice.client_id = client.id
 WHERE
-    invoice.business_id = COALESCE($1, invoice.business_id)
-    AND (
-        $2::uuid is null
-        or invoice.client_id = $2
+    (
+        (
+            (
+                $1 :: uuid is not null
+                and invoice.business_id = $1
+            )
+            or $1 is null
+        )
+        and (
+            (
+                $2 :: uuid is not null
+                and invoice.client_id = $2
+            )
+            or $2 is null
+        ) 
+        and (
+            (
+                $3 :: uuid is not null
+                and invoice.id = $3
+            )
+            or $3 is null
+        )
+        and (
+            (
+                $4 :: timestamptz is not null
+                and invoice.created_at <= $4 :: timestamptz
+            )
+            or $4 :: timestamptz is null
+        )
+        and (
+            (
+                $5 :: uuid is not null
+                and invoice.id != $5 :: uuid
+            )
+            or $5 :: uuid is null
+        )
+
     )
-    AND invoice.id = COALESCE($3, invoice.id)
-    AND (
-        $4::timestamptz IS NULL
-        OR invoice.created_at <= $4
-    )
-    AND (
-        $5::uuid IS NULL
-        OR invoice.id < $5
-    )
+    
 GROUP BY
-    invoice.id, client.id
+    invoice.id,
+    client.id
 ORDER BY
-    invoice.created_at DESC, invoice.id DESC
+    invoice.created_at DESC,
+    invoice.id DESC
 LIMIT
     COALESCE($6, 1)
 `
@@ -194,7 +217,7 @@ type FindInvoicesWhereParams struct {
 
 type FindInvoicesWhereRow struct {
 	Invoice Invoice `db:"invoice" json:"invoice"`
-	Client  Client  `db:"client" json:"client"`
+	Client  []byte  `db:"client" json:"client"`
 	Items   []byte  `db:"items" json:"items"`
 }
 
@@ -233,14 +256,7 @@ func (q *Queries) FindInvoicesWhere(ctx context.Context, arg FindInvoicesWherePa
 			&i.Invoice.Tax,
 			&i.Invoice.InvoiceNumber,
 			&i.Invoice.Total,
-			&i.Client.ID,
-			&i.Client.CreatedAt,
-			&i.Client.UpdatedAt,
-			&i.Client.DeletedAt,
-			&i.Client.BusinessID,
-			&i.Client.Fullname,
-			&i.Client.Email,
-			&i.Client.Phone,
+			&i.Client,
 			&i.Items,
 		); err != nil {
 			return nil, err
@@ -257,7 +273,7 @@ const updateInvoice = `-- name: UpdateInvoice :one
 Update
     invoice
 SET
-    updated_at = timezone('utc', now()), 
+    updated_at = timezone('utc', now()),
     currency = COALESCE($2, currency),
     payment_due_date = COALESCE($3, payment_due_date),
     date_of_issue = COALESCE($4, date_of_issue),

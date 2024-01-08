@@ -81,21 +81,23 @@ func (repo *InvoiceRepo) FindInvoicesWhere(input *database.FindInvoicesWherePara
 	ctx := context.Background()
 
 	result, err := repo.db.FindInvoicesWhere(ctx, *input)
+	
 	if err != nil {
-		fmt.Println("uuuuu")
 		return nil, err
 	}
 
 	invoiceList := make([]database.InvoiceWithItemsAny, len(result))
 
 	for index := range result {
+		var client []*database.Client
+		json.Unmarshal(result[index].Client, &client)
+
 		row := result[index]
 		jsonItems := new([]any)
 		finalItems := make([]any, 0)
 
 		err := json.Unmarshal(row.Items, &jsonItems)
 		if err != nil {
-			fmt.Println("yyyyyyyy")
 			return nil, err
 		}
 
@@ -109,7 +111,7 @@ func (repo *InvoiceRepo) FindInvoicesWhere(input *database.FindInvoicesWherePara
 		invoiceList[index] = database.InvoiceWithItemsAny{
 			Invoice: row.Invoice,
 			Items:   finalItems,
-			Clients: &row.Client,
+			Clients: client[0],
 		}
 	}
 
