@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -25,7 +26,7 @@ func NewPagedResult[k any](items []k, cursor *string) *PagedResult[k] {
 
 func ListToPagedResult[T any](
 	items []T,
-	props func(item T) (time.Time, string),
+	props func(item T) (time.Time, int64),
 ) PagedResult[T] {
 
 	var nextCursor *string = nil
@@ -40,7 +41,7 @@ func ListToPagedResult[T any](
 	}
 }
 
-func DecodeCursor(encodedCursor string) (res time.Time, uuid string, err error) {
+func DecodeCursor(encodedCursor string) (res time.Time, uuid int64, err error) {
 	byt, err := base64.StdEncoding.DecodeString(encodedCursor)
 	if err != nil {
 		return
@@ -56,11 +57,15 @@ func DecodeCursor(encodedCursor string) (res time.Time, uuid string, err error) 
 	if err != nil {
 		return
 	}
-	uuid = arrStr[1]
+	
+	uuid,err = strconv.ParseInt(arrStr[1],10,64)
+	if err != nil {
+		return
+	}
 	return
 }
 
-func EncodeCursor(t time.Time, uuid string) string {
-	key := fmt.Sprintf("%s,%s", t.Format(time.RFC3339Nano), uuid)
+func EncodeCursor(t time.Time, uuid int64) string {
+	key := fmt.Sprintf("%s,%v", t.Format(time.RFC3339Nano), uuid)
 	return base64.StdEncoding.EncodeToString([]byte(key))
 }

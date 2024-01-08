@@ -19,10 +19,10 @@ func NewClientRepo(db *database.Queries) *ClientRepo {
 
 }
 
-func (repo *ClientRepo) GetClients(businessId uuid.UUID) ([]database.Client, error) {
+func (repo *ClientRepo) FindClientsWhere(filter *database.FindClientsWhereParams) ([]database.Client, error) {
 	ctx := context.Background()
 
-	clientsList, err := repo.db.GetClientsByBusinessId(ctx, businessId)
+	clientsList, err := repo.db.FindClientsWhere(ctx, *filter)
 
 	if isErrNoRows(err) {
 		return clientsList, nil
@@ -62,4 +62,17 @@ func (repo *ClientRepo) FindBusinessClientById(id, businessId uuid.UUID) (*datab
 	}
 
 	return &client, nil
+}
+
+func (repo *ClientRepo) UpdateClient(input *database.UpdateClientParams) (*database.Client, error) {
+	ctx := context.Background()
+
+	client, err := repo.db.UpdateClient(ctx, *input)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &client, nil
+
 }

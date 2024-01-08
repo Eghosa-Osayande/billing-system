@@ -27,13 +27,14 @@ func (handler *InvoiceHandler) RegisterHandlers(router fiber.Router) {
 
 	router.Get("/all", handler.HandleAll)
 	router.Post("/new", handler.HandleCreateInvoice)
+	router.Post("/update", handler.HandleUpdateInvoice)
 
 }
 
 type FetchInvoiceFilter struct {
 	InvoiceID *uuid.UUID `json:"invoice_id" validate:"omitnil"`
 	ClientID  *uuid.UUID `json:"client_id" validate:"omitnil"`
-	Limit     *int       `json:"limit"`
+	Limit     *int32       `json:"limit"`
 	Cursor    *string    `json:"cursor"`
 }
 
@@ -50,7 +51,7 @@ func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
 	}
 
 	var cursor_time pgtype.Timestamptz
-	var cursor_id *uuid.UUID
+	var cursor_id *int64
 
 	if input.Cursor != nil {
 		created_at, id, errCsr := util.DecodeCursor(*input.Cursor)
@@ -59,12 +60,9 @@ func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
 			return fiber.NewError(fiber.ErrBadRequest.Code, "invalid-cursor")
 		}
 
-		parsedId, err := uuid.Parse(id)
-		if err != nil {
-			return fiber.NewError(fiber.ErrBadRequest.Code, "invalid-cursor")
-		}
+		
 
-		cursor_time, cursor_id = pgtype.Timestamptz{Time: created_at,Valid: true}, &parsedId
+		cursor_time, cursor_id = pgtype.Timestamptz{Time: created_at, Valid: true}, &id
 
 	}
 
@@ -90,8 +88,8 @@ func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
 				invoices,
 				func(
 					item database.InvoiceWithItemsAny,
-				) (t time.Time, uuid string) {
-					return item.CreatedAt.Time, item.ID.String()
+				) (t time.Time, uuid int64) {
+					return item.CreatedAt.Time, item.CountID
 				}),
 		),
 	)
@@ -105,8 +103,6 @@ type InvoiceItemInput struct {
 	Discount     *decimal.Decimal `json:"discount" db:"discount,number"`
 	DiscountType *string          `json:"discount_type" db:"discount_type" validate:"omitempty,oneof=fixed percent"`
 }
-
-
 
 type CreateInvoiceInput struct {
 	Currency        *string             `json:"currency"`
@@ -154,7 +150,7 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 	}
 	var paymentDueDate pgtype.Timestamptz
 	if input.PaymentDueDate != nil {
-		
+
 		d, err := time.Parse("2006-01-02", *input.PaymentDueDate)
 		if err != nil {
 			return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid date format")
@@ -201,4 +197,78 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.JSON(util.NewSuccessResponseWithData[any]("Success", invoice))
+}
+
+type UpdateInvoiceInput struct {
+	InvoiceID       uuid.UUID          `json:"invoice_id" validate:"required"`
+	PaymentStatus *string `json:"payment_status" validate:"omitempty,oneof=paid unpaid partial_paid over_due"`
+	CreateInvoiceInput
+}
+
+func (handler *InvoiceHandler) HandleUpdateInvoice(ctx *fiber.Ctx) error {
+
+	input, valerr := util.ValidateRequestBody[*UpdateInvoiceInput](ctx.Body(), &UpdateInvoiceInput{})
+
+	if valerr != nil {
+		return valerr
+	}
+
+	
+
+	itemsParams := make([]database.CreateInvoiceItemParams, 0)
+
+	if input.Items != nil {
+		itemsParams = make([]database.CreateInvoiceItemParams, len(*input.Items))
+		for index := range *input.Items {
+			item := (*input.Items)[index]
+
+			itemsParams[index] = database.CreateInvoiceItemParams{
+				Title:        item.Name,
+				Price:        item.Price,
+				Quantity:     decimal.NewFromInt(int64(item.Quantity)),
+				Discount:     item.Discount,
+				DiscountType: item.DiscountType,
+			}
+		}
+	}
+	var paymentDueDate pgtype.Timestamptz
+	if input.PaymentDueDate != nil {
+
+		d, err := time.Parse("2006-01-02", *input.PaymentDueDate)
+		if err != nil {
+			return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid date format")
+		}
+		paymentDueDate = pgtype.Timestamptz{Time: d, Valid: true}
+
+	}
+	var issueDate pgtype.Timestamptz
+	if input.DateOfIssue != nil {
+		d, err := time.Parse("2006-01-02", *input.DateOfIssue)
+		if err != nil {
+			return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid date format")
+		}
+		issueDate = pgtype.Timestamptz{Time: d, Valid: true}
+	}
+
+	result, err := handler.config.InvoiceRepo.UpdateInvoice(
+		&database.UpdateInvoiceParams{
+			ID:              input.InvoiceID,
+			Currency:        input.Currency,
+			PaymentDueDate:  paymentDueDate,
+			DateOfIssue:     issueDate,
+			Notes:           input.Notes,
+			PaymentMethod:   input.PaymentMethod,
+			ClientID:       input.ClientID,
+			ShippingFeeType: input.ShippingFeeType,
+			ShippingFee:     input.ShippingFee,
+			Total:           &decimal.Decimal{},
+			PaymentStatus: input.PaymentStatus,
+		}, itemsParams)
+
+	if err != nil {
+		log.Println(err)
+		return fiber.NewError(fiber.ErrInternalServerError.Code, "Internal Server Error")
+	}
+
+	return ctx.JSON(util.NewSuccessResponseWithData[*database.InvoiceWithItemsAny]("Invoice updated successfully", result))
 }

@@ -19,11 +19,11 @@ VALUES
     )
 RETURNING *;
 
--- name: DeleteInvoiceItemByID :exec
+-- name: DeleteInvoiceItemByInvoiceID :exec
 DELETE FROM
     invoiceitem
 WHERE
-    id = $1;
+    invoice_id = $1;
 
 -- name: FindInvoiceItemsByInvoiceId :many
 SELECT

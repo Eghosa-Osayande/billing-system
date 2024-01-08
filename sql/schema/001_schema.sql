@@ -4,6 +4,7 @@ SET TIMEZONE TO 'UTC';
 
 
 Create table if not exists users (
+	count_id BIGSERIAL  NOT NULL,
 	id uuid primary key DEFAULT uuid_generate_v1mc() NOT NULL,
 	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
 	updated_at TIMESTAMPTZ,
@@ -15,6 +16,7 @@ Create table if not exists users (
 );
 
 Create table if not exists user_email_verifications (
+	count_id BIGSERIAL  NOT NULL,
 	email varchar(255) primary key NOT NULL UNIQUE,
 	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
 	code varchar(255) NOT NULL,
@@ -22,6 +24,7 @@ Create table if not exists user_email_verifications (
 );
 
 Create table if not exists business (
+	count_id BIGSERIAL  NOT NULL,
 	id uuid primary key DEFAULT uuid_generate_v1mc() NOT NULL,
 	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
 	updated_at TIMESTAMPTZ,
@@ -34,6 +37,7 @@ Create table if not exists business (
 );
 
 Create table if not exists client (
+	count_id BIGSERIAL  NOT NULL,
 	id uuid primary key DEFAULT uuid_generate_v1mc() NOT NULL,
 	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
 	updated_at TIMESTAMPTZ,
@@ -45,10 +49,11 @@ Create table if not exists client (
 	phone varchar(255) NULL
 );
 
-CREATE TYPE invoice_payment_status AS ENUM ('Paid', 'Unpaid', 'Partially paid', 'Overdue');
+
 
 
 Create table if not exists invoice (
+	count_id BIGSERIAL  NOT NULL,
 	id uuid primary key DEFAULT uuid_generate_v1mc() NOT NULL,
 	created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
 	updated_at TIMESTAMPTZ,
@@ -61,7 +66,7 @@ Create table if not exists invoice (
 	date_of_issue TIMESTAMPTZ NULL,
 	notes varchar(255) NULL,
 	payment_method varchar(255) NULL,
-	payment_status invoice_payment_status DEFAULT 'Unpaid' NOT NULL,
+	payment_status varchar(255) DEFAULT 'Unpaid' NOT NULL,
 	client_id uuid NULL,
 	FOREIGN KEY (client_id) REFERENCES client(id) ON DELETE SET NULL,
 	shipping_fee_type varchar(255) NULL,

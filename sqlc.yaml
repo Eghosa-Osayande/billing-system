@@ -31,7 +31,7 @@ sql:
               import: "github.com/shopspring/decimal"
               type: "Decimal"
               pointer: true
-              
+
           - db_type: "uuid"
             go_type: "github.com/google/uuid.UUID"
 

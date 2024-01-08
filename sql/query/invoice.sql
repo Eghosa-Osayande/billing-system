@@ -96,17 +96,19 @@ WHERE
         )
         and (
             (
-                sqlc.narg('cursor_time') :: timestamptz is not null
-                and invoice.created_at <= sqlc.narg('cursor_time') :: timestamptz
+                invoice.created_at <= sqlc.narg('cursor_time') and
+                sqlc.narg('cursor_time')  is not null
+                
             )
-            or sqlc.narg('cursor_time') :: timestamptz is null
+            or sqlc.narg('cursor_time') is null
         )
         and (
             (
-                sqlc.narg('cursor_id') :: uuid is not null
-                and invoice.id != sqlc.narg('cursor_id') :: uuid
+                invoice.count_id < sqlc.narg('cursor_id') and
+                sqlc.narg('cursor_id')  is not null
+            
             )
-            or sqlc.narg('cursor_id') :: uuid is null
+            or sqlc.narg('cursor_id')  is null
         )
 
     )
@@ -116,6 +118,6 @@ GROUP BY
     client.id
 ORDER BY
     invoice.created_at DESC,
-    invoice.id DESC
+    invoice.count_id DESC
 LIMIT
-    COALESCE(sqlc.narg('limit'), 1);
+    sqlc.narg('limit')::INTEGER;

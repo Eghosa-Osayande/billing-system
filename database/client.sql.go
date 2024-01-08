@@ -9,12 +9,12 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createClient = `-- name: CreateClient :one
 INSERT INTO
     client (
-       
         business_id,
         fullname,
         email,
@@ -26,7 +26,7 @@ VALUES
         $2,
         $3,
         $4
-    ) RETURNING id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
+    ) RETURNING count_id, id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
 `
 
 type CreateClientParams struct {
@@ -45,6 +45,7 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Cli
 	)
 	var i Client
 	err := row.Scan(
+		&i.CountID,
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -57,25 +58,14 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Cli
 	return i, err
 }
 
-const deleteClient = `-- name: DeleteClient :exec
-DELETE FROM
+const findBusinessClientByID = `-- name: FindBusinessClientByID :one
+SELECT
+    count_id, id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
+FROM
     client
 WHERE
     id = $1
-`
-
-func (q *Queries) DeleteClient(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteClient, id)
-	return err
-}
-
-const findBusinessClientByID = `-- name: FindBusinessClientByID :one
-SELECT
-	id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
-FROM
-	client
-WHERE
-	id=$1 AND business_id=$2
+    AND business_id = $2
 `
 
 type FindBusinessClientByIDParams struct {
@@ -87,6 +77,7 @@ func (q *Queries) FindBusinessClientByID(ctx context.Context, arg FindBusinessCl
 	row := q.db.QueryRow(ctx, findBusinessClientByID, arg.ID, arg.BusinessID)
 	var i Client
 	err := row.Scan(
+		&i.CountID,
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -99,19 +90,66 @@ func (q *Queries) FindBusinessClientByID(ctx context.Context, arg FindBusinessCl
 	return i, err
 }
 
-const getClientsByBusinessId = `-- name: GetClientsByBusinessId :many
+const findClientsWhere = `-- name: FindClientsWhere :many
 SELECT
-    id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
+    count_id, id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
 FROM
     client
 WHERE
-    business_id = $1
+    (
+        client.id = $1 or $1 IS NULL
+    )
+    AND (
+        client.business_id = $2 or $2 IS NULL
+    )
+    AND (
+        client.fullname ilike $3 or $3 IS NULL
+    )
+    AND (
+        client.email ilike $4
+        or $4 IS NULL
+    )
+    AND (
+        client.phone ilike $5
+        or $5 IS NULL
+    )
+    AND (
+        client.created_at <= $6
+        or $6 IS NULL
+    )
+    AND (
+        client.count_id < $7
+        or $7 IS NULL
+    )
 ORDER BY
-    created_at DESC
+    client.created_at DESC,
+    client.count_id DESC
+LIMIT
+    $8
 `
 
-func (q *Queries) GetClientsByBusinessId(ctx context.Context, businessID uuid.UUID) ([]Client, error) {
-	rows, err := q.db.Query(ctx, getClientsByBusinessId, businessID)
+type FindClientsWhereParams struct {
+	ID         *uuid.UUID         `db:"id" json:"id"`
+	BusinessID *uuid.UUID         `db:"business_id" json:"business_id"`
+	Fullname   *string            `db:"fullname" json:"fullname"`
+	Email      *string            `db:"email" json:"email"`
+	Phone      *string            `db:"phone" json:"phone"`
+	CursorTime pgtype.Timestamptz `db:"cursor_time" json:"cursor_time"`
+	CursorID   *int64             `db:"cursor_id" json:"cursor_id"`
+	Limit      *int32             `db:"limit" json:"limit"`
+}
+
+func (q *Queries) FindClientsWhere(ctx context.Context, arg FindClientsWhereParams) ([]Client, error) {
+	rows, err := q.db.Query(ctx, findClientsWhere,
+		arg.ID,
+		arg.BusinessID,
+		arg.Fullname,
+		arg.Email,
+		arg.Phone,
+		arg.CursorTime,
+		arg.CursorID,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -120,6 +158,7 @@ func (q *Queries) GetClientsByBusinessId(ctx context.Context, businessID uuid.UU
 	for rows.Next() {
 		var i Client
 		if err := rows.Scan(
+			&i.CountID,
 			&i.ID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -148,12 +187,12 @@ SET
     email = COALESCE($3, email),
     phone = COALESCE($4, phone)
 WHERE
-    id = $1 RETURNING id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
+    id = $1 RETURNING count_id, id, created_at, updated_at, deleted_at, business_id, fullname, email, phone
 `
 
 type UpdateClientParams struct {
 	ID       uuid.UUID `db:"id" json:"id"`
-	Fullname string    `db:"fullname" json:"fullname"`
+	Fullname *string   `db:"fullname" json:"fullname"`
 	Email    *string   `db:"email" json:"email"`
 	Phone    *string   `db:"phone" json:"phone"`
 }
@@ -167,6 +206,7 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Cli
 	)
 	var i Client
 	err := row.Scan(
+		&i.CountID,
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,

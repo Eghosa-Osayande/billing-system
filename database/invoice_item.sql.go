@@ -66,15 +66,15 @@ func (q *Queries) CreateInvoiceItem(ctx context.Context, arg CreateInvoiceItemPa
 	return i, err
 }
 
-const deleteInvoiceItemByID = `-- name: DeleteInvoiceItemByID :exec
+const deleteInvoiceItemByInvoiceID = `-- name: DeleteInvoiceItemByInvoiceID :exec
 DELETE FROM
     invoiceitem
 WHERE
-    id = $1
+    invoice_id = $1
 `
 
-func (q *Queries) DeleteInvoiceItemByID(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteInvoiceItemByID, id)
+func (q *Queries) DeleteInvoiceItemByInvoiceID(ctx context.Context, invoiceID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteInvoiceItemByInvoiceID, invoiceID)
 	return err
 }
 

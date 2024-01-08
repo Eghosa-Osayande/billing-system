@@ -5,59 +5,13 @@
 package database
 
 import (
-	"database/sql/driver"
-	"fmt"
-
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/shopspring/decimal"
 )
 
-type InvoicePaymentStatus string
-
-const (
-	InvoicePaymentStatusPaid          InvoicePaymentStatus = "Paid"
-	InvoicePaymentStatusUnpaid        InvoicePaymentStatus = "Unpaid"
-	InvoicePaymentStatusPartiallypaid InvoicePaymentStatus = "Partially paid"
-	InvoicePaymentStatusOverdue       InvoicePaymentStatus = "Overdue"
-)
-
-func (e *InvoicePaymentStatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = InvoicePaymentStatus(s)
-	case string:
-		*e = InvoicePaymentStatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for InvoicePaymentStatus: %T", src)
-	}
-	return nil
-}
-
-type NullInvoicePaymentStatus struct {
-	InvoicePaymentStatus InvoicePaymentStatus `json:"invoice_payment_status"`
-	Valid                bool                 `json:"valid"` // Valid is true if InvoicePaymentStatus is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullInvoicePaymentStatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.InvoicePaymentStatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.InvoicePaymentStatus.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullInvoicePaymentStatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.InvoicePaymentStatus), nil
-}
-
 type Business struct {
+	CountID        int64              `db:"count_id" json:"count_id"`
 	ID             uuid.UUID          `db:"id" json:"id"`
 	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
@@ -69,6 +23,7 @@ type Business struct {
 }
 
 type Client struct {
+	CountID    int64              `db:"count_id" json:"count_id"`
 	ID         uuid.UUID          `db:"id" json:"id"`
 	CreatedAt  pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt  pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
@@ -80,24 +35,25 @@ type Client struct {
 }
 
 type Invoice struct {
-	ID              uuid.UUID            `db:"id" json:"id"`
-	CreatedAt       pgtype.Timestamptz   `db:"created_at" json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz   `db:"updated_at" json:"updated_at"`
-	DeletedAt       pgtype.Timestamptz   `db:"deleted_at" json:"deleted_at"`
-	BusinessID      uuid.UUID            `db:"business_id" json:"business_id"`
-	Currency        *string              `db:"currency" json:"currency"`
-	CurrencySymbol  *string              `db:"currency_symbol" json:"currency_symbol"`
-	PaymentDueDate  pgtype.Timestamptz   `db:"payment_due_date" json:"payment_due_date"`
-	DateOfIssue     pgtype.Timestamptz   `db:"date_of_issue" json:"date_of_issue"`
-	Notes           *string              `db:"notes" json:"notes"`
-	PaymentMethod   *string              `db:"payment_method" json:"payment_method"`
-	PaymentStatus   InvoicePaymentStatus `db:"payment_status" json:"payment_status"`
-	ClientID        *uuid.UUID           `db:"client_id" json:"client_id"`
-	ShippingFeeType *string              `db:"shipping_fee_type" json:"shipping_fee_type"`
-	ShippingFee     *decimal.Decimal     `db:"shipping_fee" json:"shipping_fee"`
-	Tax             *decimal.Decimal     `db:"tax" json:"tax"`
-	InvoiceNumber   string               `db:"invoice_number" json:"invoice_number"`
-	Total           *decimal.Decimal     `db:"total" json:"total"`
+	CountID         int64              `db:"count_id" json:"count_id"`
+	ID              uuid.UUID          `db:"id" json:"id"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `db:"deleted_at" json:"deleted_at"`
+	BusinessID      uuid.UUID          `db:"business_id" json:"business_id"`
+	Currency        *string            `db:"currency" json:"currency"`
+	CurrencySymbol  *string            `db:"currency_symbol" json:"currency_symbol"`
+	PaymentDueDate  pgtype.Timestamptz `db:"payment_due_date" json:"payment_due_date"`
+	DateOfIssue     pgtype.Timestamptz `db:"date_of_issue" json:"date_of_issue"`
+	Notes           *string            `db:"notes" json:"notes"`
+	PaymentMethod   *string            `db:"payment_method" json:"payment_method"`
+	PaymentStatus   string             `db:"payment_status" json:"payment_status"`
+	ClientID        *uuid.UUID         `db:"client_id" json:"client_id"`
+	ShippingFeeType *string            `db:"shipping_fee_type" json:"shipping_fee_type"`
+	ShippingFee     *decimal.Decimal   `db:"shipping_fee" json:"shipping_fee"`
+	Tax             *decimal.Decimal   `db:"tax" json:"tax"`
+	InvoiceNumber   string             `db:"invoice_number" json:"invoice_number"`
+	Total           *decimal.Decimal   `db:"total" json:"total"`
 }
 
 type Invoiceitem struct {
@@ -112,6 +68,7 @@ type Invoiceitem struct {
 }
 
 type User struct {
+	CountID       int64              `db:"count_id" json:"count_id"`
 	ID            uuid.UUID          `db:"id" json:"id"`
 	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
@@ -123,6 +80,7 @@ type User struct {
 }
 
 type UserEmailVerification struct {
+	CountID   int64              `db:"count_id" json:"count_id"`
 	Email     string             `db:"email" json:"email"`
 	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	Code      string             `db:"code" json:"code"`

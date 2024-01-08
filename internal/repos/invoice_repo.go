@@ -81,7 +81,7 @@ func (repo *InvoiceRepo) FindInvoicesWhere(input *database.FindInvoicesWherePara
 	ctx := context.Background()
 
 	result, err := repo.db.FindInvoicesWhere(ctx, *input)
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +116,60 @@ func (repo *InvoiceRepo) FindInvoicesWhere(input *database.FindInvoicesWherePara
 	}
 
 	return invoiceList, nil
+
+}
+
+func (repo *InvoiceRepo) UpdateInvoice(input *database.UpdateInvoiceParams, items []database.CreateInvoiceItemParams) (*database.InvoiceWithItemsAny, error) {
+
+	ctx := context.Background()
+	sqDB := repo.db.GetSqlDB()
+	tx, err := sqDB.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	defer tx.Rollback(ctx)
+	db := repo.db.WithTx(tx)
+	newInvoice, err := db.UpdateInvoice(ctx, *input)
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.DeleteInvoiceItemByInvoiceID(ctx, newInvoice.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	newItems := make([]database.Invoiceitem, len(items))
+	for index := range items {
+		item := items[index]
+		item.InvoiceID = newInvoice.ID
+
+		newItem, err := db.CreateInvoiceItem(ctx, item)
+		if err != nil {
+			return nil, err
+		}
+		newItems[index] = newItem
+
+	}
+
+	invoiceWithTotal, err := calculateInvoiceTotal(db, newInvoice.ID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit(ctx)
+
+	if err != nil {
+		return nil, err
+
+	}
+
+	return &database.InvoiceWithItemsAny{
+		Invoice: *invoiceWithTotal,
+		Items:   newItems,
+	}, nil
 
 }
 

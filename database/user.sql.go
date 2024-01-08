@@ -12,13 +12,14 @@ import (
 )
 
 const findUserById = `-- name: FindUserById :one
-Select id, created_at, updated_at, deleted_at, fullname, email, password, email_verified from users where id=$1 LIMIT 1
+Select count_id, id, created_at, updated_at, deleted_at, fullname, email, password, email_verified from users where id=$1 LIMIT 1
 `
 
 func (q *Queries) FindUserById(ctx context.Context, id uuid.UUID) (User, error) {
 	row := q.db.QueryRow(ctx, findUserById, id)
 	var i User
 	err := row.Scan(
+		&i.CountID,
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,

@@ -45,7 +45,7 @@ INSERT INTO
 	)
 VALUES
 	($1, $2, $3, $4)
-RETURNING id, created_at, updated_at, deleted_at, fullname, email, password, email_verified
+RETURNING count_id, id, created_at, updated_at, deleted_at, fullname, email, password, email_verified
 `
 
 type CreateUserParams struct {
@@ -64,6 +64,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	)
 	var i User
 	err := row.Scan(
+		&i.CountID,
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -90,7 +91,7 @@ func (q *Queries) DeleteUserEmailVerificationByEmail(ctx context.Context, email 
 
 const findUserByEmail = `-- name: FindUserByEmail :one
 SELECT
-	id, created_at, updated_at, deleted_at, fullname, email, password, email_verified
+	count_id, id, created_at, updated_at, deleted_at, fullname, email, password, email_verified
 FROM
 	users
 WHERE
@@ -102,6 +103,7 @@ func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, erro
 	row := q.db.QueryRow(ctx, findUserByEmail, email)
 	var i User
 	err := row.Scan(
+		&i.CountID,
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -116,7 +118,7 @@ func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, erro
 
 const findUserEmailVerificationByEmail = `-- name: FindUserEmailVerificationByEmail :one
 SELECT
-	email, created_at, code, expires_at
+	count_id, email, created_at, code, expires_at
 FROM
 	user_email_verifications
 WHERE
@@ -127,6 +129,7 @@ func (q *Queries) FindUserEmailVerificationByEmail(ctx context.Context, email st
 	row := q.db.QueryRow(ctx, findUserEmailVerificationByEmail, email)
 	var i UserEmailVerification
 	err := row.Scan(
+		&i.CountID,
 		&i.Email,
 		&i.CreatedAt,
 		&i.Code,
@@ -142,7 +145,7 @@ SET
 	email_verified = $1
 WHERE
 	email = $2
-RETURNING id, created_at, updated_at, deleted_at, fullname, email, password, email_verified
+RETURNING count_id, id, created_at, updated_at, deleted_at, fullname, email, password, email_verified
 `
 
 type UpdateUserEmailVerifiedByEmailParams struct {
@@ -154,6 +157,7 @@ func (q *Queries) UpdateUserEmailVerifiedByEmail(ctx context.Context, arg Update
 	row := q.db.QueryRow(ctx, updateUserEmailVerifiedByEmail, arg.EmailVerified, arg.Email)
 	var i User
 	err := row.Scan(
+		&i.CountID,
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
