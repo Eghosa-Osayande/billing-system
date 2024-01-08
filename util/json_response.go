@@ -28,7 +28,7 @@ func NewSuccessResponse(msg string) SuccessResponse {
 	}
 }
 
-func NewErrorMessage(msg string, errors []error) ErrorResponse {
+func NewErrorMessage(msg string, errors ...error) ErrorResponse {
 	errStrings := make([]string, len(errors))
 	for t := range errors {
 		errStrings[t] = errors[t].Error()

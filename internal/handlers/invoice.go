@@ -116,6 +116,7 @@ type CreateInvoiceInput struct {
 	ShippingFeeType *string             `json:"shipping_fee_type" validate:"omitnil,oneof=fixed percent"`
 	ShippingFee     *decimal.Decimal    `json:"shipping_fee"`
 	Tax             *decimal.Decimal    `json:"tax"`
+	PaymentStatus *string `json:"payment_status" validate:"omitempty,oneof=paid unpaid partial_paid over_due"`
 }
 
 func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
@@ -188,6 +189,7 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 			ShippingFee:     input.ShippingFee,
 			Total:           &decimal.Decimal{},
 			Tax:             input.Tax,
+			PaymentStatus:   input.PaymentStatus,
 		},
 		itemsParams)
 
@@ -201,7 +203,6 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 
 type UpdateInvoiceInput struct {
 	InvoiceID       uuid.UUID          `json:"invoice_id" validate:"required"`
-	PaymentStatus *string `json:"payment_status" validate:"omitempty,oneof=paid unpaid partial_paid over_due"`
 	CreateInvoiceInput
 }
 

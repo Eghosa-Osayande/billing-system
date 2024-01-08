@@ -66,7 +66,7 @@ Create table if not exists invoice (
 	date_of_issue TIMESTAMPTZ NULL,
 	notes varchar(255) NULL,
 	payment_method varchar(255) NULL,
-	payment_status varchar(255) DEFAULT 'Unpaid' NOT NULL,
+	payment_status varchar(255) DEFAULT 'unpaid' NOT NULL,
 	client_id uuid NULL,
 	FOREIGN KEY (client_id) REFERENCES client(id) ON DELETE SET NULL,
 	shipping_fee_type varchar(255) NULL,

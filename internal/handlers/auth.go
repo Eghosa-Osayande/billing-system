@@ -234,7 +234,6 @@ func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
 	if incorrectPassword == nil {
 		accessDuration := time.Duration(24) * time.Hour * 30
 		claims := jwt.MapClaims{}
-		claims["email"] = user.Email
 		claims["user_id"] = user.ID
 		claims["exp"] = jwt.NewNumericDate(time.Now().Add(accessDuration).UTC())
 

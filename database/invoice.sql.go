@@ -27,7 +27,8 @@ INSERT INTO
         shipping_fee_type,
         shipping_fee,
         total,
-        tax
+        tax,
+        payment_status
     )
 VALUES
     (
@@ -42,7 +43,8 @@ VALUES
         $9,
         $10,
         $11,
-        $12
+        $12,
+        COALESCE($13,'unpaid')::varchar
     ) RETURNING count_id, id, created_at, updated_at, deleted_at, business_id, currency, currency_symbol, payment_due_date, date_of_issue, notes, payment_method, payment_status, client_id, shipping_fee_type, shipping_fee, tax, invoice_number, total
 `
 
@@ -59,6 +61,7 @@ type CreateInvoiceParams struct {
 	ShippingFee     *decimal.Decimal   `db:"shipping_fee" json:"shipping_fee"`
 	Total           *decimal.Decimal   `db:"total" json:"total"`
 	Tax             *decimal.Decimal   `db:"tax" json:"tax"`
+	PaymentStatus   *string            `db:"payment_status" json:"payment_status"`
 }
 
 func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error) {
@@ -75,6 +78,7 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		arg.ShippingFee,
 		arg.Total,
 		arg.Tax,
+		arg.PaymentStatus,
 	)
 	var i Invoice
 	err := row.Scan(

@@ -12,7 +12,8 @@ INSERT INTO
         shipping_fee_type,
         shipping_fee,
         total,
-        tax
+        tax,
+        payment_status
     )
 VALUES
     (
@@ -27,7 +28,8 @@ VALUES
         $9,
         $10,
         $11,
-        $12
+        $12,
+        COALESCE(sqlc.narg('payment_status'),'unpaid')::varchar
     ) RETURNING *;
 
 -- name: UpdateInvoice :one

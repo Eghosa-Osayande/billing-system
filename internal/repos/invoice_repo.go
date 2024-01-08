@@ -173,6 +173,18 @@ func (repo *InvoiceRepo) UpdateInvoice(input *database.UpdateInvoiceParams, item
 
 }
 
+func (repo *InvoiceRepo) GetInvoicesCount(businessId uuid.UUID) (*database.GetInvoiceCountsRow, error) {
+	ctx := context.Background()
+
+	count, err := repo.db.GetInvoiceCounts(ctx, businessId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &count, nil
+}
+
 func calculateInvoiceTotal(db *database.Queries, invoiceId uuid.UUID) (updatedInvoice *database.Invoice, err error) {
 
 	ctx := context.Background()
