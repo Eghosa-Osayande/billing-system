@@ -18,7 +18,7 @@ func NewUserRepo(db *database.Queries) *UserRepo {
 
 }
 
-func (repo *UserRepo) getUserById(id uuid.UUID) (*database.User, error) {
+func (repo *UserRepo) FindUserById(id uuid.UUID) (*database.User, error) {
 	db := repo.db
 	ctx := context.Background()
 	user, err := db.FindUserById(ctx, id)

@@ -35,7 +35,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.ResendEmailOtpInput"
+                            "$ref": "#/definitions/handlers.ResendEmailOtpInput"
                         }
                     }
                 ],
@@ -82,7 +82,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.CreateUserInput"
+                            "$ref": "#/definitions/handlers.CreateUserInput"
                         }
                     }
                 ],
@@ -101,51 +101,80 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/me": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account Details"
+                ],
+                "summary": "Get User Account Details",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/util.SuccessResponseWithData-handlers_userBusinessHolder"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/util.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "auth.CreateUserInput": {
+        "database.Business": {
             "type": "object",
-            "required": [
-                "email",
-                "fullname",
-                "password",
-                "phone"
-            ],
             "properties": {
-                "email": {
+                "business_avatar": {
                     "type": "string"
                 },
-                "fullname": {
+                "business_name": {
                     "type": "string"
                 },
-                "password": {
+                "count_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "$ref": "#/definitions/pgtype.Timestamptz"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/pgtype.Timestamptz"
+                },
+                "id": {
                     "type": "string"
                 },
-                "phone": {
+                "invoice_count": {
+                    "type": "number"
+                },
+                "owner_id": {
                     "type": "string"
-                }
-            }
-        },
-        "auth.ResendEmailOtpInput": {
-            "type": "object",
-            "required": [
-                "email"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
+                },
+                "updated_at": {
+                    "$ref": "#/definitions/pgtype.Timestamptz"
                 }
             }
         },
         "database.User": {
             "type": "object",
             "properties": {
+                "count_id": {
+                    "type": "integer"
+                },
                 "created_at": {
-                    "type": "string"
+                    "$ref": "#/definitions/pgtype.Timestamptz"
                 },
                 "deleted_at": {
-                    "type": "string"
+                    "$ref": "#/definitions/pgtype.Timestamptz"
                 },
                 "email": {
                     "type": "string"
@@ -162,11 +191,76 @@ const docTemplate = `{
                 "password": {
                     "type": "string"
                 },
-                "phone": {
+                "updated_at": {
+                    "$ref": "#/definitions/pgtype.Timestamptz"
+                }
+            }
+        },
+        "handlers.CreateUserInput": {
+            "type": "object",
+            "required": [
+                "email",
+                "fullname",
+                "password"
+            ],
+            "properties": {
+                "email": {
                     "type": "string"
                 },
-                "updated_at": {
+                "fullname": {
                     "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.ResendEmailOtpInput": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.userBusinessHolder": {
+            "type": "object",
+            "properties": {
+                "business": {
+                    "$ref": "#/definitions/database.Business"
+                },
+                "user": {
+                    "$ref": "#/definitions/database.User"
+                }
+            }
+        },
+        "pgtype.InfinityModifier": {
+            "type": "integer",
+            "enum": [
+                1,
+                0,
+                -1
+            ],
+            "x-enum-varnames": [
+                "Infinity",
+                "Finite",
+                "NegativeInfinity"
+            ]
+        },
+        "pgtype.Timestamptz": {
+            "type": "object",
+            "properties": {
+                "infinityModifier": {
+                    "$ref": "#/definitions/pgtype.InfinityModifier"
+                },
+                "time": {
+                    "type": "string"
+                },
+                "valid": {
+                    "type": "boolean"
                 }
             }
         },
@@ -197,6 +291,17 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/database.User"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "util.SuccessResponseWithData-handlers_userBusinessHolder": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.userBusinessHolder"
                 },
                 "message": {
                     "type": "string"

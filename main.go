@@ -81,6 +81,8 @@ func main() {
 
 	handlers.NewDashboardHandler(config).RegisterHandlers(app)
 
+	handlers.NewUserHandler(config).RegisterHandlers(app)
+
 	if err := app.Listen(":" + port); err != nil {
 		log.Fatal("Server failed to start",err)
 	}
