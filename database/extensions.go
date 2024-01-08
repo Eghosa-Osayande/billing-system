@@ -5,6 +5,8 @@ import (
 	// "encoding/json"
 	// "database/sql"
 
+	"encoding/json"
+
 	"github.com/jackc/pgx/v5"
 )
 
@@ -12,15 +14,32 @@ func (q Queries) GetSqlDB() *pgx.Conn {
 	return q.db.(*pgx.Conn)
 }
 
-type InvoiceWithItemsT[T any] struct  {
-	Invoice 
-	Items T `json:"items"`
-	Clients *Client `json:"client"`
+type FullInvoice struct {
+	Invoice
+	Items   any `json:"items"`
+	Clients any `json:"client"`
 }
 
-type InvoiceWithItems InvoiceWithItemsT[[]Invoiceitem]
-type InvoiceWithItemsAny InvoiceWithItemsT[any]
+func (i *FindInvoicesWhereRow) ToFullInvoice() (*FullInvoice, error) {
+	var client []any
+	err := json.Unmarshal(i.Client, &client)
+	if err != nil {
+		return nil, err
+	}
 
+	var jsonItems []any
+
+	err = json.Unmarshal(i.Items, &jsonItems)
+
+	if err != nil {
+		return nil, err
+	}
+	return &FullInvoice{
+		Invoice: i.Invoice,
+		Items:   jsonItems,
+		Clients: client[0],
+	}, nil
+}
 
 // type InvoiceItem struct {
 // 	Name     string   `json:"name" validate:"required" db:"name"`

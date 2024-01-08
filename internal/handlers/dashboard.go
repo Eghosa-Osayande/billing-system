@@ -26,8 +26,8 @@ func (handler *DashboardHandler) RegisterHandlers(router fiber.Router) {
 }
 
 type dashboardResponse struct {
-	Summary  *database.GetInvoiceCountsRow  `json:"summary"`
-	Invoices []database.InvoiceWithItemsAny `json:"invoices"`
+	Summary  *database.GetInvoiceCountsRow `json:"summary"`
+	Invoices []database.FullInvoice        `json:"invoices"`
 }
 
 func (h *DashboardHandler) HandleDashboard(ctx *fiber.Ctx) error {

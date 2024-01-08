@@ -34,7 +34,7 @@ func (handler *InvoiceHandler) RegisterHandlers(router fiber.Router) {
 type FetchInvoiceFilter struct {
 	InvoiceID *uuid.UUID `json:"invoice_id" validate:"omitnil"`
 	ClientID  *uuid.UUID `json:"client_id" validate:"omitnil"`
-	Limit     *int32       `json:"limit"`
+	Limit     *int32     `json:"limit"`
 	Cursor    *string    `json:"cursor"`
 }
 
@@ -59,8 +59,6 @@ func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
 		if errCsr != nil {
 			return fiber.NewError(fiber.ErrBadRequest.Code, "invalid-cursor")
 		}
-
-		
 
 		cursor_time, cursor_id = pgtype.Timestamptz{Time: created_at, Valid: true}, &id
 
@@ -87,7 +85,7 @@ func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
 			util.ListToPagedResult(
 				invoices,
 				func(
-					item database.InvoiceWithItemsAny,
+					item database.FullInvoice,
 				) (t time.Time, uuid int64) {
 					return item.CreatedAt.Time, item.CountID
 				}),
@@ -116,7 +114,7 @@ type CreateInvoiceInput struct {
 	ShippingFeeType *string             `json:"shipping_fee_type" validate:"omitnil,oneof=fixed percent"`
 	ShippingFee     *decimal.Decimal    `json:"shipping_fee"`
 	Tax             *decimal.Decimal    `json:"tax"`
-	PaymentStatus *string `json:"payment_status" validate:"omitempty,oneof=paid unpaid partial_paid over_due"`
+	PaymentStatus   *string             `json:"payment_status" validate:"omitempty,oneof=paid unpaid partial_paid over_due"`
 }
 
 func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
@@ -202,7 +200,7 @@ func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 }
 
 type UpdateInvoiceInput struct {
-	InvoiceID       uuid.UUID          `json:"invoice_id" validate:"required"`
+	InvoiceID uuid.UUID `json:"invoice_id" validate:"required"`
 	CreateInvoiceInput
 }
 
@@ -213,8 +211,6 @@ func (handler *InvoiceHandler) HandleUpdateInvoice(ctx *fiber.Ctx) error {
 	if valerr != nil {
 		return valerr
 	}
-
-	
 
 	itemsParams := make([]database.CreateInvoiceItemParams, 0)
 
@@ -259,11 +255,11 @@ func (handler *InvoiceHandler) HandleUpdateInvoice(ctx *fiber.Ctx) error {
 			DateOfIssue:     issueDate,
 			Notes:           input.Notes,
 			PaymentMethod:   input.PaymentMethod,
-			ClientID:       input.ClientID,
+			ClientID:        input.ClientID,
 			ShippingFeeType: input.ShippingFeeType,
 			ShippingFee:     input.ShippingFee,
 			Total:           &decimal.Decimal{},
-			PaymentStatus: input.PaymentStatus,
+			PaymentStatus:   input.PaymentStatus,
 		}, itemsParams)
 
 	if err != nil {
@@ -271,5 +267,5 @@ func (handler *InvoiceHandler) HandleUpdateInvoice(ctx *fiber.Ctx) error {
 		return fiber.NewError(fiber.ErrInternalServerError.Code, "Internal Server Error")
 	}
 
-	return ctx.JSON(util.NewSuccessResponseWithData[*database.InvoiceWithItemsAny]("Invoice updated successfully", result))
+	return ctx.JSON(util.NewSuccessResponseWithData[*database.FullInvoice]("Invoice updated successfully", result))
 }

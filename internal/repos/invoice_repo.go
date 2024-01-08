@@ -3,7 +3,6 @@ package repos
 import (
 	"blanq_invoice/database"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -23,7 +22,7 @@ func NewInvoiceRepo(db *database.Queries) *InvoiceRepo {
 
 }
 
-func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, items []database.CreateInvoiceItemParams) (*database.InvoiceWithItems, error) {
+func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, items []database.CreateInvoiceItemParams) (*database.FullInvoice, error) {
 
 	ctx := context.Background()
 	sqDB := repo.db.GetSqlDB()
@@ -70,14 +69,11 @@ func (repo *InvoiceRepo) CreateInvoice(input *database.CreateInvoiceParams, item
 
 	}
 
-	return &database.InvoiceWithItems{
-		Invoice: *invoiceWithTotal,
-		Items:   newItems,
-	}, nil
+	return invoiceWithTotal.ToFullInvoice()
 
 }
 
-func (repo *InvoiceRepo) FindInvoicesWhere(input *database.FindInvoicesWhereParams) ([]database.InvoiceWithItemsAny, error) {
+func (repo *InvoiceRepo) FindInvoicesWhere(input *database.FindInvoicesWhereParams) ([]database.FullInvoice, error) {
 	ctx := context.Background()
 
 	result, err := repo.db.FindInvoicesWhere(ctx, *input)
@@ -86,40 +82,21 @@ func (repo *InvoiceRepo) FindInvoicesWhere(input *database.FindInvoicesWherePara
 		return nil, err
 	}
 
-	invoiceList := make([]database.InvoiceWithItemsAny, len(result))
+	invoiceList := make([]database.FullInvoice, len(result))
 
 	for index := range result {
-		var client []*database.Client
-		json.Unmarshal(result[index].Client, &client)
-
-		row := result[index]
-		jsonItems := new([]any)
-		finalItems := make([]any, 0)
-
-		err := json.Unmarshal(row.Items, &jsonItems)
+		i, err := result[index].ToFullInvoice()
 		if err != nil {
 			return nil, err
 		}
-
-		for _, v := range *jsonItems {
-			if v != nil {
-				finalItems = append(finalItems, v)
-			}
-
-		}
-
-		invoiceList[index] = database.InvoiceWithItemsAny{
-			Invoice: row.Invoice,
-			Items:   finalItems,
-			Clients: client[0],
-		}
+		invoiceList[index] = *i
 	}
 
 	return invoiceList, nil
 
 }
 
-func (repo *InvoiceRepo) UpdateInvoice(input *database.UpdateInvoiceParams, items []database.CreateInvoiceItemParams) (*database.InvoiceWithItemsAny, error) {
+func (repo *InvoiceRepo) UpdateInvoice(input *database.UpdateInvoiceParams, items []database.CreateInvoiceItemParams) (*database.FullInvoice, error) {
 
 	ctx := context.Background()
 	sqDB := repo.db.GetSqlDB()
@@ -166,10 +143,7 @@ func (repo *InvoiceRepo) UpdateInvoice(input *database.UpdateInvoiceParams, item
 
 	}
 
-	return &database.InvoiceWithItemsAny{
-		Invoice: *invoiceWithTotal,
-		Items:   newItems,
-	}, nil
+	return invoiceWithTotal.ToFullInvoice()
 
 }
 
@@ -185,7 +159,7 @@ func (repo *InvoiceRepo) GetInvoicesCount(businessId uuid.UUID) (*database.GetIn
 	return &count, nil
 }
 
-func calculateInvoiceTotal(db *database.Queries, invoiceId uuid.UUID) (updatedInvoice *database.Invoice, err error) {
+func calculateInvoiceTotal(db *database.Queries, invoiceId uuid.UUID) (updatedInvoice *database.FindInvoicesWhereRow, err error) {
 
 	ctx := context.Background()
 
@@ -261,7 +235,15 @@ func calculateInvoiceTotal(db *database.Queries, invoiceId uuid.UUID) (updatedIn
 
 	invoiceUpdated, err := db.UpdateInvoice(ctx, database.UpdateInvoiceParams{ID: invoice.ID, Total: &total})
 
-	updatedInvoice = &invoiceUpdated
+	if err != nil {
+		return
+	}
+
+	finalInvoice, err := db.FindInvoicesWhere(ctx, database.FindInvoicesWhereParams{InvoiceID: &invoiceUpdated.ID})
+	if err != nil {
+		return
+	}
+	updatedInvoice = &finalInvoice[0]
 
 	return
 }

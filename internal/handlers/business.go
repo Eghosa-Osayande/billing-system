@@ -5,7 +5,9 @@ import (
 	"blanq_invoice/internal/repos"
 	"blanq_invoice/middlewares"
 	"blanq_invoice/util"
+	"io/fs"
 	"log"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -27,6 +29,10 @@ func (handler *BusinessHandler) RegisterHandlers(router fiber.Router) {
 	router.Use(
 		middlewares.UserMustHaveBusinessMiddlewareInstance().Use,
 	).Post("/update", handler.HandleUpdateBusiness)
+
+	router.Use(
+		middlewares.UserMustHaveBusinessMiddlewareInstance().Use,
+	).Post("/avatar", handler.HandleUploadBusinessAvatar)
 
 }
 
@@ -51,6 +57,47 @@ func (handler *BusinessHandler) HandleGetBusiness(ctx *fiber.Ctx) error {
 type CreateBusinessInput struct {
 	BusinessName   string  `db:"business_name" json:"business_name" validate:"required"`
 	BusinessAvatar *string `db:"business_avatar" json:"business_avatar"`
+}
+
+func (handler *BusinessHandler) HandleUploadBusinessAvatar(ctx *fiber.Ctx) (error) {
+	fileHeader, err := ctx.FormFile("avatar")
+	
+	if err != nil {
+		log.Println("Error getting file header")
+		return err
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		log.Println("Error opening file")
+		return err
+	}
+
+	contents := make([]byte, fileHeader.Size)
+	_, err = file.Read(contents)
+	if err != nil {
+		log.Println("Error reading file")
+		return err
+	}
+	os.Mkdir("uploads",fs.ModePerm)
+	savedFile, err := os.Create("uploads/" + fileHeader.Filename)
+	if err != nil {
+		log.Println("Error creating file")
+		return err
+	}
+
+	_, err = savedFile.Write(contents)
+	if err != nil {
+		log.Println("Error writing file")
+		return err	
+	}
+	err=savedFile.Close()
+	if err != nil {
+		log.Println("Error closing file")
+		return err
+	}
+
+	return ctx.JSON(util.NewSuccessResponseWithData("File uploaded successfully", "avatar.png"))
 }
 
 func (handler *BusinessHandler) HandleCreateBusiness(ctx *fiber.Ctx) error {
@@ -93,6 +140,7 @@ type UpdateBusinessInput struct {
 }
 
 func (handler *BusinessHandler) HandleUpdateBusiness(ctx *fiber.Ctx) error {
+
 	input, valErr := util.ValidateRequestBody(ctx.Body(), &UpdateBusinessInput{})
 
 	if valErr != nil {
