@@ -54,6 +54,10 @@ func main() {
 		UserRepo:     repos.NewUserRepo(db),
 	})
 
+	app.Get("/health", func(ctx *fiber.Ctx) error {
+		return ctx.JSON(map[string]string{"status": "ok"})
+	})
+
 	middlewares.NewUserMustHaveBusinessMiddleware(config)
 
 	app.Use(middlewares.ErrorMessageMiddleware)
