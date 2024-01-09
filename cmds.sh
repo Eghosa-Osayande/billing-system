@@ -1,6 +1,8 @@
 #!/bin/bash
-alias air=$(go env GOPATH)/bin/air&&alias swag=./swag
 
-goose -dir "sql/schema" postgres postgres://root:root@localhost:5432/dev4 up
+source .env
 
-swag init --parseDependency --parseInternal --parseDepth 1
+goose -dir "sql/schema" postgres $DBURL up
+
+docker build -t blank .
+docker run -p 8080:$PORT blank

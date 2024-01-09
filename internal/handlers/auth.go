@@ -40,20 +40,11 @@ type CreateUserInput struct {
 	Password string `json:"password" validate:"required,len=7"`
 }
 
-// Signup godoc
-// @Tags Authentication
-// @Summary Signup
-// @Description Create a new user
-// @Accept json
-// @Produce json
-// @Param Authorization header string true "With the Bearer prefix"
-// @Param CreateUserInput body CreateUserInput true " "
-// @Success 200 {object}  util.SuccessResponseWithData[database.User]
-// @Failure 500 {object}  util.ErrorResponse
-// @Router /auth/signup [post]
+
+
 func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 
-	input, valErr := util.ValidateRequestBody(ctx.Body(), &CreateUserInput{})
+	input, valErr := ValidateRequestBody(ctx.Body(), &CreateUserInput{})
 
 	if valErr != nil {
 		return valErr
@@ -100,7 +91,25 @@ func (handler *AuthHandler) HandleSignup(ctx *fiber.Ctx) error {
 
 		go sendEmailOTP(verificationData.Email, verificationData.Code)
 
-		return ctx.JSON(util.NewSuccessResponseWithData("User created successfully", createdUser))
+		updatedUser, err := handler.config.UserRepo.GetUserProfileWhere(database.GetUserProfileWhereParams{
+			Email: &createdUser.Email,
+		})
+
+		if err != nil {
+			return fiber.NewError(400, "Unknown Error")
+		}
+		if len(updatedUser) > 1 {
+			log.Println("Multiple Accounts found")
+			return fiber.NewError(400, "Unknown Error")
+		}
+
+		userprof, err := updatedUser[0].ToFullUser()
+		if err != nil {
+			log.Println(err)
+			return fiber.NewError(fiber.ErrInternalServerError.Code, err.Error())
+		}
+
+		return ctx.JSON(util.NewSuccessResponseWithData("User created successfully", userprof))
 	}
 
 }
@@ -109,19 +118,9 @@ type ResendEmailOtpInput struct {
 	Email string `json:"email" validate:"required,email"`
 }
 
-// Signup godoc
-// @Tags Authentication
-// @Summary Resend EmailOTP
-// @Description Resend EmailOTP
-// @Accept json
-// @Produce json
-// @Param ResendEmailOtpInput body ResendEmailOtpInput true " "
-// @Success 200 {object}  util.SuccessResponse
-// @Failure 500 {object}  util.ErrorResponse
-// @Router /auth/resendEmailOtp [post]
 func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 
-	input, valErr := util.ValidateRequestBody(ctx.Body(), &ResendEmailOtpInput{})
+	input, valErr := ValidateRequestBody(ctx.Body(), &ResendEmailOtpInput{})
 
 	if valErr != nil {
 		return valErr
@@ -136,7 +135,7 @@ func (handler *AuthHandler) HandleResendEmailOtp(ctx *fiber.Ctx) error {
 	verificationData := &database.CreateOrUpdateUserEmailVerificationParams{
 		Email:     input.Email,
 		Code:      generateOTP(),
-		ExpiresAt: pgtype.Timestamptz{Time: generateOtpExpiration(), Valid: true},}
+		ExpiresAt: pgtype.Timestamptz{Time: generateOtpExpiration(), Valid: true}}
 
 	err = handler.config.AuthRepo.CreateOrUpdateUserEmailVerificationData(verificationData)
 
@@ -160,7 +159,7 @@ type VerifyEmailOtpInput struct {
 
 func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
 
-	input, valErr := util.ValidateRequestBody(ctx.Body(), &VerifyEmailOtpInput{})
+	input, valErr := ValidateRequestBody(ctx.Body(), &VerifyEmailOtpInput{})
 
 	if valErr != nil {
 		return valErr
@@ -190,13 +189,25 @@ func (handler *AuthHandler) HandleVerifyEmail(ctx *fiber.Ctx) error {
 			log.Println(deleteErr)
 		}
 
-		updatedUser, err := handler.config.AuthRepo.GetUserByEmail(input.Email)
+		updatedUser, err := handler.config.UserRepo.GetUserProfileWhere(database.GetUserProfileWhereParams{
+			Email: &input.Email,
+		})
 
 		if err != nil {
 			return fiber.NewError(400, "Unknown Error")
 		}
+		if len(updatedUser) > 1 {
+			log.Println("Multiple Accounts found")
+			return fiber.NewError(400, "Unknown Error")
+		}
 
-		return ctx.JSON(util.NewSuccessResponseWithData("Email Verified", updatedUser))
+		userprof, err := updatedUser[0].ToFullUser()
+		if err != nil {
+			log.Println(err)
+			return fiber.NewError(fiber.ErrInternalServerError.Code, err.Error())
+		}
+
+		return ctx.JSON(util.NewSuccessResponseWithData("Email Verified", userprof))
 
 	} else {
 		return fiber.NewError(400, "Incorrect OTP")
@@ -209,25 +220,29 @@ type LoginUserInput struct {
 	Password string `json:"password" validate:"required"`
 }
 
-type LoginUserResponse struct {
-	User database.User `json:"user"`
-	Auth map[string]string
-}
-
 func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
 
-	input, valErr := util.ValidateRequestBody(ctx.Body(), &LoginUserInput{})
+	input, valErr := ValidateRequestBody(ctx.Body(), &LoginUserInput{})
 
 	if valErr != nil {
 		return valErr
 	}
 
-	repo := handler.config.AuthRepo
+	userProfile, err := handler.config.UserRepo.GetUserProfileWhere(database.GetUserProfileWhereParams{
+		Email: &input.Email,
+	})
 
-	user, err := repo.GetUserByEmail(input.Email)
 	if err != nil {
+		log.Println(err)
 		return fiber.NewError(400, "Invalid login details")
 	}
+
+	if noOfUsers := len(userProfile); noOfUsers != 1 {
+		log.Println("Multiple or Zero Accounts found: ", noOfUsers)
+		return fiber.NewError(400, "Invalid login details")
+	}
+
+	user := userProfile[0]
 
 	incorrectPassword := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
 
@@ -247,13 +262,22 @@ func (handler *AuthHandler) HandleLogin(ctx *fiber.Ctx) error {
 			return fiber.NewError(500)
 		}
 
-		return ctx.JSON(util.NewSuccessResponseWithData("Logged In", LoginUserResponse{
-			User: *user,
-			Auth: map[string]string{
-				"accessToken": accessToken,
-				"expires_by":  fmt.Sprintf("%v", time.Now().Add(accessDuration).UTC()),
+		userprof, err := user.ToFullUser()
+		if err != nil {
+			log.Println("Error converting user to full user", err)
+			return fiber.NewError(fiber.ErrInternalServerError.Code)
+		}
+
+		return ctx.JSON(util.NewSuccessResponseWithData(
+			"Logged In",
+			map[string]any{
+				"user": userprof,
+				"auth": map[string]string{
+					"accessToken": accessToken,
+					"expires_by":  fmt.Sprintf("%v", time.Now().Add(accessDuration).UTC()),
+				},
 			},
-		}))
+		))
 	} else {
 		return fiber.NewError(400, "Invalid login details")
 	}

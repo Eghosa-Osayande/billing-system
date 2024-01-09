@@ -13,8 +13,8 @@ UPDATE
 	business
 SET
 	updated_at = timezone('utc', now()),
-	business_name = $2,
-	business_avatar = $3
+	business_name = coalesce(sqlc.narg('business_name'), business_name),
+	business_avatar = coalesce(sqlc.narg('business_avatar'), business_avatar)
 WHERE
 	owner_id = $1 RETURNING *;
 

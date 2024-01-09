@@ -34,34 +34,34 @@ type FetchClientFilter struct {
 	ClientID   *uuid.UUID `json:"client_id" validate:"omitnil"`
 	Limit      *int32     `json:"limit" validate:"omitnil"`
 	Cursor     *string    `json:"cursor"`
-	BusinessID *uuid.UUID `json:"business_id" validate:"omitnil"`
-	Email      *string    `json:"email" validate:"omitnil,email"`
-	Phone      *string    `json:"phone" validate:"omitnil,e164"`
-	Fullname   *string    `json:"fullname" validate:"omitnil"`
+	SearchTerm *string    `json:"search_term" validate:"omitnil"`
 }
 
 func (handler *ClientHandler) HandleAll(ctx *fiber.Ctx) error {
-	input, err := util.ValidateRequestBody[*FetchClientFilter](ctx.Body(), &FetchClientFilter{})
+	input, err := ValidateRequestBody[*FetchClientFilter](ctx.Body(), &FetchClientFilter{})
 	if err != nil {
 		return err
 	}
 
 	businessId, err := util.GetUserBusinessIdFromContext(ctx)
 	if err != nil {
-		return err
+		log.Println("Error getting business id", err)
+		return fiber.NewError(fiber.ErrUnauthorized.Code, "unauthorized")
 	}
 	var ctime pgtype.Timestamptz
 	var cid *int64
 	if input.Cursor != nil {
 		cursortime, cursorId, err := util.DecodeCursor(*input.Cursor)
 		if err != nil {
+			log.Println("Error decoding cursor", err)
 			return fiber.NewError(fiber.ErrBadRequest.Code, "invalid-cursor")
 		}
 
 		ctime = pgtype.Timestamptz{Time: cursortime, Valid: true}
-		cid=&cursorId
+		cid = &cursorId
 
 		if err != nil {
+			log.Println("Error decoding cursor timestamp", err)
 			return fiber.NewError(fiber.ErrBadRequest.Code, "invalid-cursor")
 		}
 		cid = &cursorId
@@ -69,30 +69,29 @@ func (handler *ClientHandler) HandleAll(ctx *fiber.Ctx) error {
 	}
 
 	clients, err := handler.config.ClientRepo.FindClientsWhere(&database.FindClientsWhereParams{
-		ID: 	   input.ClientID,
+		ID:         input.ClientID,
 		BusinessID: businessId,
-		Fullname:   input.Fullname,
-		Email:      input.Email,
-		Phone:      input.Phone,
+		Fullname:   input.SearchTerm,
+		Email:      input.SearchTerm,
+		Phone:      input.SearchTerm,
 		CursorTime: ctime,
 		CursorID:   cid,
 		Limit:      input.Limit,
 	})
 	if err != nil {
-		log.Println(err)
+		log.Println("Error finding clients", err)
+		if isErrNoRows(err) {
+			return ctx.JSON(util.NewSuccessResponseWithData("No clients found", make([]any, 0)))
+		}
 		return fiber.NewError(fiber.ErrInternalServerError.Code)
 	}
-
-	// if clients == nil {
-	// 	return ctx.JSON(util.NewSuccessResponseWithData[any]("No clients found", nil))
-	// }
 
 	return ctx.JSON(util.NewSuccessResponseWithData("Clients found", util.ListToPagedResult[database.Client](
 		clients,
 		func(item database.Client) (time.Time, int64) {
 			return item.CreatedAt.Time, item.CountID
 		},
-	),),)
+	)))
 
 }
 
@@ -103,7 +102,7 @@ type CreateClientInput struct {
 }
 
 func (handler *ClientHandler) HandleCreateClient(ctx *fiber.Ctx) error {
-	input, valErr := util.ValidateRequestBody(ctx.Body(), &CreateClientInput{})
+	input, valErr := ValidateRequestBody(ctx.Body(), &CreateClientInput{})
 	if valErr != nil {
 		return valErr
 	}
@@ -131,20 +130,20 @@ func (handler *ClientHandler) HandleCreateClient(ctx *fiber.Ctx) error {
 }
 
 type UpdateClientInput struct {
-	Fullname *string  `json:"fullname" validate:"omitnil,required"`
-	Email    *string `json:"email" validate:"omitnil,email"`
-	Phone    *string `json:"phone" validate:"omitnil,e164"`
+	Fullname *string   `json:"fullname" validate:"omitnil,min=1"`
+	Email    *string   `json:"email" validate:"omitnil,email"`
+	Phone    *string   `json:"phone" validate:"omitnil,e164"`
 	ClientID uuid.UUID `json:"client_id" validate:"required"`
 }
 
-func (h *ClientHandler) HandleUpdateClient(ctx *fiber.Ctx) error{
-	input, valerr:= util.ValidateRequestBody[*UpdateClientInput](ctx.Body(),&UpdateClientInput{})
+func (h *ClientHandler) HandleUpdateClient(ctx *fiber.Ctx) error {
+	input, valerr := ValidateRequestBody[*UpdateClientInput](ctx.Body(), &UpdateClientInput{})
 
 	if valerr != nil {
 		return valerr
 	}
 
-	r,err:= h.config.ClientRepo.UpdateClient(&database.UpdateClientParams{
+	r, err := h.config.ClientRepo.UpdateClient(&database.UpdateClientParams{
 		ID:       input.ClientID,
 		Fullname: input.Fullname,
 		Email:    input.Email,
@@ -156,6 +155,6 @@ func (h *ClientHandler) HandleUpdateClient(ctx *fiber.Ctx) error{
 		return fiber.NewError(fiber.ErrInternalServerError.Code)
 	}
 
-	return ctx.JSON(util.NewSuccessResponseWithData[*database.Client]("Client updated",r))
+	return ctx.JSON(util.NewSuccessResponseWithData[*database.Client]("Client updated", r))
 
 }

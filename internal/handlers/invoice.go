@@ -39,7 +39,7 @@ type FetchInvoiceFilter struct {
 }
 
 func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
-	input, valerr := util.ValidateRequestBody[*FetchInvoiceFilter](ctx.Body(), &FetchInvoiceFilter{})
+	input, valerr := ValidateRequestBody[*FetchInvoiceFilter](ctx.Body(), &FetchInvoiceFilter{})
 
 	if valerr != nil {
 		return valerr
@@ -96,10 +96,10 @@ func (handler *InvoiceHandler) HandleAll(ctx *fiber.Ctx) error {
 
 type InvoiceItemInput struct {
 	Name         string           `json:"name" validate:"required" db:"name"`
-	Price        decimal.Decimal  `json:"price" validate:"required,number" db:"price"`
-	Quantity     int              `json:"quantity" validate:"required,number" db:"quantity"`
-	Discount     *decimal.Decimal `json:"discount" db:"discount,number"`
-	DiscountType *string          `json:"discount_type" db:"discount_type" validate:"omitempty,oneof=fixed percent"`
+	Price        decimal.Decimal  `json:"price" validate:"required" db:"price"`
+	Quantity     int              `json:"quantity" validate:"required" db:"quantity"`
+	Discount     *decimal.Decimal `json:"discount" db:"discount" validate:"required_with=DiscountType"`
+	DiscountType *string          `json:"discount_type" db:"discount_type" validate:"oneof=fixed percent,required_with=Discount"`
 }
 
 type CreateInvoiceInput struct {
@@ -112,14 +112,14 @@ type CreateInvoiceInput struct {
 	Items           *[]InvoiceItemInput `json:"items"`
 	ClientID        *uuid.UUID          `json:"client_id"`
 	ShippingFeeType *string             `json:"shipping_fee_type" validate:"omitnil,oneof=fixed percent"`
-	ShippingFee     *decimal.Decimal    `json:"shipping_fee"`
+	ShippingFee     *decimal.Decimal    `json:"shipping_fee" validate:"required_with=ShippingFeeType"`
 	Tax             *decimal.Decimal    `json:"tax"`
 	PaymentStatus   *string             `json:"payment_status" validate:"omitempty,oneof=paid unpaid partial_paid over_due"`
 }
 
 func (handler *InvoiceHandler) HandleCreateInvoice(ctx *fiber.Ctx) error {
 
-	input, valerr := util.ValidateRequestBody[*CreateInvoiceInput](ctx.Body(), &CreateInvoiceInput{})
+	input, valerr := ValidateRequestBody[*CreateInvoiceInput](ctx.Body(), &CreateInvoiceInput{})
 
 	if valerr != nil {
 		return valerr
@@ -206,7 +206,7 @@ type UpdateInvoiceInput struct {
 
 func (handler *InvoiceHandler) HandleUpdateInvoice(ctx *fiber.Ctx) error {
 
-	input, valerr := util.ValidateRequestBody[*UpdateInvoiceInput](ctx.Body(), &UpdateInvoiceInput{})
+	input, valerr := ValidateRequestBody[*UpdateInvoiceInput](ctx.Body(), &UpdateInvoiceInput{})
 
 	if valerr != nil {
 		return valerr

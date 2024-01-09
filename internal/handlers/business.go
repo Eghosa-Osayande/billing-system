@@ -36,7 +36,6 @@ func (handler *BusinessHandler) RegisterHandlers(router fiber.Router) {
 
 }
 
-// write a handler for each route
 func (handler *BusinessHandler) HandleGetBusiness(ctx *fiber.Ctx) error {
 
 	userUUID, err := util.GetUserIdFromContext(ctx)
@@ -45,12 +44,17 @@ func (handler *BusinessHandler) HandleGetBusiness(ctx *fiber.Ctx) error {
 		return err
 	}
 	business, err := handler.config.BusinessRepo.FindBusinessByUserID(*userUUID)
-	if business != nil {
-		return ctx.JSON(util.NewSuccessResponseWithData[*database.Business]("Business found", business))
-	} else {
-		log.Println(err)
-		return ctx.JSON(util.NewSuccessResponseWithData[*database.Business]("No business found", nil))
+
+	if err != nil {
+		log.Println("Error getting business", err)
+
+		if isErrNoRows(err) {
+			return ctx.JSON(util.NewSuccessResponseWithData[*database.Business]("No business found", nil))
+		}
+		return fiber.NewError(fiber.ErrInternalServerError.Code, "Internal Server Error")
 	}
+
+	return ctx.JSON(util.NewSuccessResponseWithData[*database.Business]("Business found", business))
 
 }
 
@@ -59,18 +63,18 @@ type CreateBusinessInput struct {
 	BusinessAvatar *string `db:"business_avatar" json:"business_avatar"`
 }
 
-func (handler *BusinessHandler) HandleUploadBusinessAvatar(ctx *fiber.Ctx) (error) {
+func (handler *BusinessHandler) HandleUploadBusinessAvatar(ctx *fiber.Ctx) error {
 	fileHeader, err := ctx.FormFile("avatar")
-	
+
 	if err != nil {
 		log.Println("Error getting file header")
-		return err
+		return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid file")
 	}
 
 	file, err := fileHeader.Open()
 	if err != nil {
 		log.Println("Error opening file")
-		return err
+		return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid file")
 	}
 
 	contents := make([]byte, fileHeader.Size)
@@ -79,22 +83,24 @@ func (handler *BusinessHandler) HandleUploadBusinessAvatar(ctx *fiber.Ctx) (erro
 		log.Println("Error reading file")
 		return err
 	}
-	os.Mkdir("uploads",fs.ModePerm)
-	savedFile, err := os.Create("uploads/" + fileHeader.Filename)
-	if err != nil {
-		log.Println("Error creating file")
-		return err
-	}
+	if 2 == (1 + 1) {
+		os.Mkdir("uploads", fs.ModePerm)
+		savedFile, err := os.Create("uploads/" + fileHeader.Filename)
+		if err != nil {
+			log.Println("Error creating file")
+			return fiber.NewError(fiber.ErrBadRequest.Code, "Invalid file")
+		}
 
-	_, err = savedFile.Write(contents)
-	if err != nil {
-		log.Println("Error writing file")
-		return err	
-	}
-	err=savedFile.Close()
-	if err != nil {
-		log.Println("Error closing file")
-		return err
+		_, err = savedFile.Write(contents)
+		if err != nil {
+			log.Println("Error writing file")
+			return fiber.NewError(fiber.ErrInternalServerError.Code, "Error saving file")
+		}
+		err = savedFile.Close()
+		if err != nil {
+			log.Println("Error closing file")
+			return fiber.NewError(fiber.ErrInternalServerError.Code, "Error saving file")
+		}
 	}
 
 	return ctx.JSON(util.NewSuccessResponseWithData("File uploaded successfully", "avatar.png"))
@@ -102,23 +108,26 @@ func (handler *BusinessHandler) HandleUploadBusinessAvatar(ctx *fiber.Ctx) (erro
 
 func (handler *BusinessHandler) HandleCreateBusiness(ctx *fiber.Ctx) error {
 
-	input, valErr := util.ValidateRequestBody(ctx.Body(), &CreateBusinessInput{})
+	input, valErr := ValidateRequestBody(ctx.Body(), &CreateBusinessInput{})
 
 	if valErr != nil {
+		log.Println("Error validating request body", valErr)
 		return valErr
 	}
 
 	userUUID, err := util.GetUserIdFromContext(ctx)
 	if err != nil {
-		log.Println(err)
-		return err
+		log.Println("Error getting user id from context", err)
+		return fiber.NewError(fiber.ErrUnauthorized.Code, "unauthorized")
 	}
 	business, err := handler.config.BusinessRepo.FindBusinessByUserID(*userUUID)
+
 	if business != nil {
 		return fiber.NewError(fiber.ErrBadRequest.Code, "User already has a business")
 	}
+
 	if err != nil {
-		log.Println(err)
+		log.Println("Error getting business", err)
 	}
 
 	business, err = handler.config.BusinessRepo.CreateBusiness(&database.CreateBusinessParams{
@@ -127,7 +136,7 @@ func (handler *BusinessHandler) HandleCreateBusiness(ctx *fiber.Ctx) error {
 		OwnerID:        *userUUID,
 	})
 	if err != nil {
-		log.Println(err)
+		log.Println("Error creating business", err)
 		return fiber.NewError(fiber.ErrInternalServerError.Code, "Internal Server Error")
 	}
 	return ctx.JSON(util.NewSuccessResponseWithData[*database.Business]("Business created successfully", business))
@@ -135,31 +144,31 @@ func (handler *BusinessHandler) HandleCreateBusiness(ctx *fiber.Ctx) error {
 }
 
 type UpdateBusinessInput struct {
-	BusinessName   string  `db:"business_name" json:"business_name" validate:"required"`
-	BusinessAvatar *string `db:"business_avatar" json:"business_avatar"`
+	BusinessName *string `db:"business_name" json:"business_name" validate:"omitnil"`
 }
 
 func (handler *BusinessHandler) HandleUpdateBusiness(ctx *fiber.Ctx) error {
 
-	input, valErr := util.ValidateRequestBody(ctx.Body(), &UpdateBusinessInput{})
+	input, valErr := ValidateRequestBody(ctx.Body(), &UpdateBusinessInput{})
 
 	if valErr != nil {
+		log.Println("Error validating request body", valErr)
 		return valErr
 	}
 
 	userUUID, err := util.GetUserIdFromContext(ctx)
 	if err != nil {
-		log.Println(err)
-		return err
+		log.Println("Error getting user id from context", err)
+		return fiber.NewError(fiber.ErrUnauthorized.Code, "unauthorized")
 	}
 
 	business, err := handler.config.BusinessRepo.UpdateBusiness(&database.UpdateBusinessParams{
 		OwnerID:        *userUUID,
 		BusinessName:   input.BusinessName,
-		BusinessAvatar: input.BusinessAvatar,
+		BusinessAvatar: nil,
 	})
 	if err != nil {
-		log.Println(err)
+		log.Println("Error updating business", err)
 		return fiber.NewError(fiber.ErrInternalServerError.Code, "Internal Server Error")
 	}
 

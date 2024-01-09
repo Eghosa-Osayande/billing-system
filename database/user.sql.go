@@ -9,25 +9,75 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const findUserById = `-- name: FindUserById :one
-Select count_id, id, created_at, updated_at, deleted_at, fullname, email, password, email_verified from users where id=$1 LIMIT 1
+const getUserProfileWhere = `-- name: GetUserProfileWhere :many
+Select
+    users.count_id, users.id, users.created_at, users.updated_at, users.deleted_at, users.fullname, users.email, users.password, users.email_verified,
+    JSON_AGG(business.*) as business
+from
+    users
+left JOIN
+    business on users.id = business.owner_id
+where
+    (
+        users.id = $1 or $1 IS NULL
+    ) and
+    (
+        users.email = $2 or $2 IS NULL
+    ) 
+group by
+    users.id
+LIMIT $3
 `
 
-func (q *Queries) FindUserById(ctx context.Context, id uuid.UUID) (User, error) {
-	row := q.db.QueryRow(ctx, findUserById, id)
-	var i User
-	err := row.Scan(
-		&i.CountID,
-		&i.ID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
-		&i.Fullname,
-		&i.Email,
-		&i.Password,
-		&i.EmailVerified,
-	)
-	return i, err
+type GetUserProfileWhereParams struct {
+	ID    *uuid.UUID `db:"id" json:"id"`
+	Email *string    `db:"email" json:"email"`
+	Limit *int32     `db:"limit" json:"limit"`
+}
+
+type GetUserProfileWhereRow struct {
+	CountID       int64              `db:"count_id" json:"count_id"`
+	ID            uuid.UUID          `db:"id" json:"id"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	DeletedAt     pgtype.Timestamptz `db:"deleted_at" json:"deleted_at"`
+	Fullname      string             `db:"fullname" json:"fullname"`
+	Email         string             `db:"email" json:"email"`
+	Password      string             `db:"password" json:"password"`
+	EmailVerified bool               `db:"email_verified" json:"email_verified"`
+	Business      []byte             `db:"business" json:"business"`
+}
+
+func (q *Queries) GetUserProfileWhere(ctx context.Context, arg GetUserProfileWhereParams) ([]GetUserProfileWhereRow, error) {
+	rows, err := q.db.Query(ctx, getUserProfileWhere, arg.ID, arg.Email, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserProfileWhereRow
+	for rows.Next() {
+		var i GetUserProfileWhereRow
+		if err := rows.Scan(
+			&i.CountID,
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.Fullname,
+			&i.Email,
+			&i.Password,
+			&i.EmailVerified,
+			&i.Business,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

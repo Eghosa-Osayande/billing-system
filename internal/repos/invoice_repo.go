@@ -159,22 +159,19 @@ func (repo *InvoiceRepo) GetInvoicesCount(businessId uuid.UUID) (*database.GetIn
 	return &count, nil
 }
 
-func calculateInvoiceTotal(db *database.Queries, invoiceId uuid.UUID) (updatedInvoice *database.FindInvoicesWhereRow, err error) {
+func calculateInvoiceTotal(db *database.Queries, invoiceId uuid.UUID) ( *database.FindInvoicesWhereRow,  error) {
 
 	ctx := context.Background()
-
+	
 	invoice, err := db.FindInvoiceById(ctx, invoiceId)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	items, err := db.FindInvoiceItemsByInvoiceId(ctx, invoice.ID)
 
 	if err != nil {
-		if !isErrNoRows(err) {
-			return
-		}
-
+		return nil, err
 	}
 
 	itemTotals := make([]decimal.Decimal, len(items))
@@ -236,14 +233,17 @@ func calculateInvoiceTotal(db *database.Queries, invoiceId uuid.UUID) (updatedIn
 	invoiceUpdated, err := db.UpdateInvoice(ctx, database.UpdateInvoiceParams{ID: invoice.ID, Total: &total})
 
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	finalInvoice, err := db.FindInvoicesWhere(ctx, database.FindInvoicesWhereParams{InvoiceID: &invoiceUpdated.ID})
 	if err != nil {
-		return
+		return nil, err
 	}
-	updatedInvoice = &finalInvoice[0]
+	if len(finalInvoice) != 1 {
+		return nil, errors.New("invoice not found")
+	}
+	updatedInvoice := &finalInvoice[0]
 
-	return
+	return updatedInvoice, nil
 }

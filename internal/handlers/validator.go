@@ -1,12 +1,12 @@
-package util
+package handlers
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/gofiber/fiber/v2"
 )
 
 var customValidator *validator.Validate = validator.New(validator.WithRequiredStructEnabled())
@@ -19,7 +19,7 @@ func (v ValidationError) Error() string {
 	return errors.Join(v.ErrArr...).Error()
 }
 
-func ValidateStruct(val interface{}) error {
+func validateStruct(val interface{}) error {
 
 	if err := customValidator.Struct(val); err != nil {
 		validationErrors := err.(validator.ValidationErrors)
@@ -51,11 +51,10 @@ func msgForTag(tag string, field string, errorMessage string) string {
 func ValidateRequestBody[T any](body []byte, output T) (T, error) {
 
 	if err := json.Unmarshal(body, output); err != nil {
-		log.Println(err)
-		return output, err
+		return output, fiber.NewError(fiber.ErrBadRequest.Code,err.Error())
 	}
-	if valErr := ValidateStruct(output); valErr != nil {
-		return output, valErr
+	if valErr := validateStruct(output); valErr != nil {
+		return output, fiber.NewError(fiber.ErrBadRequest.Code,valErr.Error())
 	}
 
 	return output, nil

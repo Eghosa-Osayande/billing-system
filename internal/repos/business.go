@@ -47,9 +47,6 @@ func (repo *BusinessRepo) FindBusinessByUserID(id uuid.UUID) (*database.Business
 	ctx := context.Background()
 
 	business, err := repo.db.FindBusinessByUserID(ctx, id)
-	if isErrNoRows(err) {
-		return nil, nil
-	}
 	
 	if err != nil {
 		return nil, err

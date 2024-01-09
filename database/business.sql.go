@@ -78,15 +78,15 @@ UPDATE
 	business
 SET
 	updated_at = timezone('utc', now()),
-	business_name = $2,
-	business_avatar = $3
+	business_name = coalesce($2, business_name),
+	business_avatar = coalesce($3, business_avatar)
 WHERE
 	owner_id = $1 RETURNING count_id, id, created_at, updated_at, deleted_at, business_name, business_avatar, owner_id, invoice_count
 `
 
 type UpdateBusinessParams struct {
 	OwnerID        uuid.UUID `db:"owner_id" json:"owner_id"`
-	BusinessName   string    `db:"business_name" json:"business_name"`
+	BusinessName   *string   `db:"business_name" json:"business_name"`
 	BusinessAvatar *string   `db:"business_avatar" json:"business_avatar"`
 }
 

@@ -3,8 +3,6 @@ package repos
 import (
 	"blanq_invoice/database"
 	"context"
-
-	"github.com/google/uuid"
 )
 
 type UserRepo struct {
@@ -18,13 +16,13 @@ func NewUserRepo(db *database.Queries) *UserRepo {
 
 }
 
-func (repo *UserRepo) FindUserById(id uuid.UUID) (*database.User, error) {
+func (repo *UserRepo) GetUserProfileWhere(input database.GetUserProfileWhereParams) ([]database.GetUserProfileWhereRow, error) {
 	db := repo.db
 	ctx := context.Background()
-	user, err := db.FindUserById(ctx, id)
+	user, err := db.GetUserProfileWhere(ctx, input)
 	if err != nil {
 		return nil, err
 	}
-	
-	return &user, nil
+
+	return user, nil
 }

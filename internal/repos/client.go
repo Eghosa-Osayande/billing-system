@@ -24,12 +24,8 @@ func (repo *ClientRepo) FindClientsWhere(filter *database.FindClientsWhereParams
 
 	clientsList, err := repo.db.FindClientsWhere(ctx, *filter)
 
-	if isErrNoRows(err) {
-		return clientsList, nil
-	}
-
 	if err != nil {
-		return clientsList, err
+		return nil, err
 	}
 
 	return clientsList, nil

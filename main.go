@@ -6,13 +6,11 @@ import (
 	"os"
 
 	"blanq_invoice/database"
-	_ "blanq_invoice/docs"
 	"blanq_invoice/internal/handlers"
 	"blanq_invoice/internal/repos"
 	"blanq_invoice/middlewares"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/swagger"
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 )
@@ -25,16 +23,13 @@ func main() {
 
 	err := godotenv.Load()
 	if err != nil {
-		panic(err)
+		log.Println("Error Loading .env",err)
 	}
 
 	port := os.Getenv("PORT")
-	if err != nil {
-		panic(err)
-	}
-
+	
 	dbAdress := os.Getenv("DBURL")
-	docsAdress := os.Getenv("DOCSURL")
+	
 	x := context.Background()
 	conn, err := pgx.Connect(x, dbAdress)
 	if err != nil {
@@ -43,11 +38,9 @@ func main() {
 
 	defer conn.Close(x)
 
-	if err != nil {
-		panic(err)
-	}
 	err = conn.Ping(x)
 	if err != nil {
+		log.Println("Error pinging database",err)
 		panic(err)
 	}
 
@@ -65,11 +58,6 @@ func main() {
 
 	app.Use(middlewares.ErrorMessageMiddleware)
 
-	app.Get(docsAdress, swagger.New(swagger.Config{
-		TryItOutEnabled: false,
-		DeepLinking:     false,
-		DocExpansion:    "none",
-	}))
 
 	handlers.NewAuthHandler(config).RegisterHandlers(app)
 
